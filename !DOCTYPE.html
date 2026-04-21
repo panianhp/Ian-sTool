@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eng's Real-time B2 Tutor</title>
+    <style>
+        :root { --accent: #6366f1; --bg: #f8fafc; --card: #ffffff; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); margin: 0; padding: 15px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 500px; }
+        .header { text-align: center; padding: 20px 0; }
+        .btn { background: var(--accent); color: white; border: none; width: 100%; padding: 18px; border-radius: 15px; font-size: 1.1rem; font-weight: 700; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); transition: 0.3s; }
+        .btn:disabled { background: #94a3b8; cursor: not-allowed; }
+        #status { text-align: center; color: #64748b; margin-top: 15px; font-size: 0.9rem; min-height: 1.2rem; }
+        .word-card { background: var(--card); border-radius: 15px; padding: 20px; margin-top: 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); animation: slideUp 0.4s ease; border-left: 5px solid var(--accent); }
+        .word-title { font-size: 1.4rem; color: #1e293b; display: flex; align-items: center; justify-content: space-between; }
+        .pos { font-size: 0.8rem; background: #e2e8f0; padding: 2px 8px; border-radius: 5px; color: #475569; }
+        .definition { color: #334155; margin-top: 10px; line-height: 1.6; }
+        .example { color: #64748b; font-style: italic; margin-top: 8px; border-top: 1px dashed #e2e8f0; padding-top: 8px; font-size: 0.95rem; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>🌍 即時無限單字庫</h1>
+        <p style="color: #64748b;">(完全從雲端 API 獲取資料)</p>
+    </div>
+
+    <button id="mainBtn" class="btn" onclick="getWords()">從雲端抓取 5 個隨機單字</button>
+    <div id="status"></div>
+    <div id="resultArea"></div>
+</div>
+
+<script>
+    const statusText = document.getElementById('status');
+    const resultArea = document.getElementById('resultArea');
+    const btn = document.getElementById('mainBtn');
+
+    async function getWords() {
+        btn.disabled = true;
+        resultArea.innerHTML = '';
+        statusText.innerText = "正在連線隨機單字庫...";
+
+        try {
+            // 步驟 1: 獲取 15 個隨機單字（多取一些，因為有些可能沒有定義）
+            const res = await fetch('https://random-word-api.herokuapp.com/word?number=15');
+            const wordCandidates = await res.json();
+            
+            let count = 0;
+            for (let word of wordCandidates) {
+                if (count >= 5) break; // 只要 5 個
+
+                statusText.innerText = `正在分析第 ${count + 1} 個單字: ${word}...`;
+                
+                // 步驟 2: 獲取該單字的詳細定義
+                const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+                if (dictRes.status === 200) {
+                    const data = await dictRes.json();
+                    renderCard(data[0]);
+                    count++;
+                }
+            }
+            statusText.innerText = "完成！今日挑戰已生成。";
+        } catch (err) {
+            statusText.innerText = "連線失敗，請檢查網路！";
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function renderCard(data) {
+        const meaning = data.meanings[0];
+        const def = meaning.definitions[0];
+
+        const card = document.createElement('div');
+        card.className = 'word-card';
+        card.innerHTML = `
+            <div class="word-title">
+                <strong>${data.word}</strong>
+                <span class="pos">${meaning.partOfSpeech}</span>
+            </div>
+            <div class="definition">
+                ${def.definition}
+            </div>
+            ${def.example ? `<div class="example">\" ${def.example} \"</div>` : ''}
+            <table class="translation-table" style="width:100%;margin-top:10px;border-collapse:collapse;background:#f1f5f9;">
+                <tr><th style="width:30%;text-align:left;padding:4px;border-bottom:1px solid #e2e8f0;">定義中文翻譯</th><td id="trans_${data.word}" style="padding:4px;"></td></tr>
+                ${def.example ? `<tr><th style='text-align:left;padding:4px;border-bottom:1px solid #e2e8f0;'>例句中文翻譯</th><td id="ex_${data.word}" style="padding:4px;"></td></tr>` : ''}
+            </table>
+        `;
+        resultArea.appendChild(card);
+
+        // 自動取得定義中文翻譯
+        fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-TW&dt=t&q=${encodeURIComponent(def.definition)}`)
+            .then(r => r.json())
+            .then(tr => {
+                const trans = tr[0] && tr[0][0] ? tr[0][0][0] : '';
+                const td = document.getElementById(`trans_${data.word}`);
+                if (td) td.innerText = trans;
+            })
+            .catch(() => {
+                const td = document.getElementById(`trans_${data.word}`);
+                if (td) td.innerText = '（翻譯失敗）';
+            });
+
+        // 自動取得例句中文翻譯
+        if (def.example) {
+            fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-TW&dt=t&q=${encodeURIComponent(def.example)}`)
+                .then(r => r.json())
+                .then(tr => {
+                    const trans = tr[0] && tr[0][0] ? tr[0][0][0] : '';
+                    const td = document.getElementById(`ex_${data.word}`);
+                    if (td) td.innerText = trans;
+                })
+                .catch(() => {
+                    const td = document.getElementById(`ex_${data.word}`);
+                    if (td) td.innerText = '（翻譯失敗）';
+                });
+        }
+    }
+</script>
+
+</body>
+</html>
