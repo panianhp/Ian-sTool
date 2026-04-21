@@ -44,21 +44,25 @@
         statusText.innerText = "正在連線隨機單字庫...";
 
         try {
-            // 步驟 1: 獲取 15 個隨機單字（多取一些，因為有些可能沒有定義）
-            const res = await fetch('https://random-word-api.herokuapp.com/word?number=15');
-            const wordCandidates = await res.json();
-            
+            // 步驟 1: 從 datamuse API 取得常用單字（詞頻排序）
+            // 這裡用 4~8 字母的單字，並取前 30 個高頻單字
+            const res = await fetch('https://api.datamuse.com/words?sp=????*&max=30&md=f');
+            const data = await res.json();
+            // 過濾詞頻高於 10 的單字（詞頻越高越常見）
+            const wordCandidates = data.filter(w => w.tags && w.tags.includes('f') && parseInt(w.tags.find(t => t.startsWith('f:'))?.slice(2) || '0', 10) > 10)
+                .map(w => w.word);
+
             let count = 0;
             for (let word of wordCandidates) {
                 if (count >= 5) break; // 只要 5 個
 
                 statusText.innerText = `正在分析第 ${count + 1} 個單字: ${word}...`;
-                
+
                 // 步驟 2: 獲取該單字的詳細定義
                 const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
                 if (dictRes.status === 200) {
-                    const data = await dictRes.json();
-                    renderCard(data[0]);
+                    const dictData = await dictRes.json();
+                    renderCard(dictData[0]);
                     count++;
                 }
             }
