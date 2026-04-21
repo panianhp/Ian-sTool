@@ -1,0 +1,29 @@
+﻿
+
+StatusCode        : 200
+StatusDescription : OK
+Content           : [{"word":"anguish","score":144035,"tags":["f:4.177003"]},{"
+                    word":"apprehension","score":131041,"tags":["f:4.744115"]},
+                    {"word":"apprehensive","score":98033,"tags":["f:1.758789"]}
+                    ,{"word":"animosity","s...
+RawContent        : HTTP/1.1 200 OK
+                    Connection: keep-alive
+                    Vary: Accept-Encoding
+                    X-Cache: Hit from cloudfront
+                    X-Amz-Cf-Pop: TPE53-P2
+                    X-Amz-Cf-Id: 
+                    bfWqbgbua7mY5seNtXtFz3VUR5SzrrbBHPXLci1A4XL1v2C4secVig==
+                    Age: 33
+                    Co...
+Forms             : {}
+Headers           : {[Connection, keep-alive], [Vary, Accept-Encoding], 
+                    [X-Cache, Hit from cloudfront], [X-Amz-Cf-Pop, 
+                    TPE53-P2]...}
+Images            : {}
+InputFields       : {}
+Links             : {}
+ParsedHtml        : mshtml.HTMLDocumentClass
+RawContentLength  : 1695
+
+
+

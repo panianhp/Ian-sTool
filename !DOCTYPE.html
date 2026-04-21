@@ -44,20 +44,30 @@
         statusText.innerText = "正在連線隨機單字庫...";
 
         try {
-            // 步驟 1: 從 datamuse API 取得常用單字（詞頻排序）
-            // 這裡用 4~8 字母的單字，並取前 30 個高頻單字
-            const res = await fetch('https://api.datamuse.com/words?sp=????*&max=30&md=f');
+            // 步驟 1: 隨機選一個英文字母當開頭，從 datamuse API 取得單字
+            const alphabet = 'abcdefghijklmnopqrstuvwxyz';
+            const randomChar = alphabet[Math.floor(Math.random() * alphabet.length)];
+            const res = await fetch(`https://api.datamuse.com/words?sp=${randomChar}???*&max=30&md=f`);
             const data = await res.json();
-            // 過濾詞頻高於 10 的單字（詞頻越高越常見）
-            const wordCandidates = data.filter(w => w.tags && w.tags.includes('f') && parseInt(w.tags.find(t => t.startsWith('f:'))?.slice(2) || '0', 10) > 10)
-                .map(w => w.word);
+            const wordCandidates = data.map(w => w.word);
+            // 隨機選取 5 個單字
+            function getRandom(arr, n) {
+                const result = [];
+                const taken = new Set();
+                while (result.length < n && taken.size < arr.length) {
+                    const idx = Math.floor(Math.random() * arr.length);
+                    if (!taken.has(idx)) {
+                        result.push(arr[idx]);
+                        taken.add(idx);
+                    }
+                }
+                return result;
+            }
+            const randomWords = getRandom(wordCandidates, 5);
 
             let count = 0;
-            for (let word of wordCandidates) {
-                if (count >= 5) break; // 只要 5 個
-
+            for (let word of randomWords) {
                 statusText.innerText = `正在分析第 ${count + 1} 個單字: ${word}...`;
-
                 // 步驟 2: 獲取該單字的詳細定義
                 const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
                 if (dictRes.status === 200) {
@@ -66,7 +76,13 @@
                     count++;
                 }
             }
-            statusText.innerText = "完成！今日挑戰已生成。";
+                if (count === 5) {
+                    statusText.innerText = "完成！今日挑戰已生成。";
+                } else if (count > 0) {
+                    statusText.innerText = `今日挑戰單字僅取得 ${count} 個，請稍後再試。`;
+                } else {
+                    statusText.innerText = "今日挑戰單字數不足，請稍後再試。";
+                }
         } catch (err) {
             statusText.innerText = "連線失敗，請檢查網路！";
         } finally {
