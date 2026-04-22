@@ -278,20 +278,53 @@
   let allData = [];
   let currentSort = 'volume';
   let dataDate = '';
+  let fieldValidationNote = '';
 
-  // Field indices from TWSE STOCK_DAY_ALL
+  // Default field indices from TWSE STOCK_DAY_ALL (rwd)
   const F = {
     code:    0,  // 證券代號
     name:    1,  // 證券名稱
     volume:  2,  // 成交股數
-    txn:     3,  // 成交筆數
-    amount:  4,  // 成交金額
-    open:    5,  // 開盤價
-    high:    6,  // 最高價
-    low:     7,  // 最低價
-    close:   8,  // 收盤價
-    change:  9,  // 漲跌價差
+    amount:  3,  // 成交金額
+    open:    4,  // 開盤價
+    high:    5,  // 最高價
+    low:     6,  // 最低價
+    close:   7,  // 收盤價
+    change:  8,  // 漲跌價差
+    txn:     9,  // 成交筆數
   };
+
+  const FIELD_ALIASES = {
+    code: ['證券代號'],
+    name: ['證券名稱'],
+    volume: ['成交股數'],
+    amount: ['成交金額'],
+    open: ['開盤價'],
+    high: ['最高價'],
+    low: ['最低價'],
+    close: ['收盤價'],
+    change: ['漲跌價差', '漲跌(+/-)'],
+    txn: ['成交筆數']
+  };
+
+  function applyFieldMapping(fields) {
+    if (!Array.isArray(fields) || fields.length === 0) {
+      throw new Error('TWSE 欄位資訊缺失，無法校驗資料格式');
+    }
+
+    const next = {};
+    for (const [key, aliases] of Object.entries(FIELD_ALIASES)) {
+      const index = fields.findIndex(field => aliases.includes(field));
+      if (index === -1) {
+        throw new Error(`TWSE 缺少必要欄位：${aliases[0]}`);
+      }
+      next[key] = index;
+    }
+
+    const remapped = Object.keys(next).some(key => next[key] !== F[key]);
+    Object.assign(F, next);
+    fieldValidationNote = remapped ? '　欄位已自動校正' : '';
+  }
 
   function todayStr() {
     const d = new Date();
@@ -428,11 +461,12 @@
 
     try {
       const json = await fetchTWSE(dateStr);
+      applyFieldMapping(json.fields);
       allData = json.data || [];
       dataDate = json.date || dateStr;
 
       const y = dataDate.slice(0,4), m = dataDate.slice(4,6), d = dataDate.slice(6,8);
-      label.textContent = `資料日期：${y}/${m}/${d}　共 ${allData.length.toLocaleString()} 檔`;
+      label.textContent = `資料日期：${y}/${m}/${d}　共 ${allData.length.toLocaleString()} 檔${fieldValidationNote}`;
 
       renderTable(allData);
     } catch (err) {
