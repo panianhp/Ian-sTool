@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>台灣股票成交量排行 TOP 10</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --red: #f85149;
+      --text: #e6edf3;
+      --muted: #8b949e;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.5px;
+    }
+
+    header p {
+      color: var(--muted);
+      margin-top: 6px;
+      font-size: 0.875rem;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+
+    .controls label {
+      font-size: 0.875rem;
+      color: var(--muted);
+    }
+
+    .controls input[type="date"] {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 7px 12px;
+      font-size: 0.875rem;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .controls input[type="date"]:focus {
+      border-color: var(--accent);
+    }
+
+    .sort-btns {
+      display: flex;
+      gap: 6px;
+    }
+
+    .sort-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      padding: 7px 14px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .sort-btn:hover { border-color: var(--accent); color: var(--text); }
+    .sort-btn.active { border-color: var(--accent); color: var(--accent); background: #1f2a3a; }
+
+    .refresh-btn {
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: #0d1117;
+      padding: 7px 18px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .refresh-btn:hover { opacity: 0.85; }
+    .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .data-date {
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead {
+      background: #1c2128;
+    }
+
+    thead th {
+      padding: 12px 16px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    thead th:first-child,
+    thead th:nth-child(2),
+    thead th:nth-child(3) { text-align: left; }
+
+    tbody tr {
+      border-top: 1px solid var(--border);
+      transition: background 0.1s;
+    }
+
+    tbody tr:hover { background: #1c2128; }
+
+    tbody td {
+      padding: 13px 16px;
+      font-size: 0.875rem;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    tbody td:first-child { text-align: center; }
+    tbody td:nth-child(2), tbody td:nth-child(3) { text-align: left; }
+
+    .rank {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--muted);
+      width: 36px;
+    }
+
+    .rank-1 { color: #ffd700; }
+    .rank-2 { color: #c0c0c0; }
+    .rank-3 { color: #cd7f32; }
+
+    .code {
+      font-family: monospace;
+      font-weight: 600;
+      color: var(--accent);
+      font-size: 0.9rem;
+    }
+
+    .name { font-weight: 500; }
+
+    .price { font-weight: 600; }
+
+    .change-up { color: var(--red); font-weight: 600; }
+    .change-down { color: var(--green); font-weight: 600; }
+    .change-flat { color: var(--muted); }
+
+    .volume-bar-cell { min-width: 140px; }
+
+    .volume-bar-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .bar {
+      height: 6px;
+      border-radius: 3px;
+      background: var(--accent);
+      opacity: 0.6;
+      min-width: 2px;
+    }
+
+    .vol-num { font-variant-numeric: tabular-nums; }
+
+    .status-box {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-icon { font-size: 2rem; margin-bottom: 12px; }
+
+    .note {
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 16px;
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>📈 台灣股票成交量排行 TOP 10</h1>
+  <p>資料來源：臺灣證券交易所 (TWSE)</p>
+</header>
+
+<div class="controls">
+  <label for="datePicker">查詢日期：</label>
+  <input type="date" id="datePicker" />
+
+  <div class="sort-btns">
+    <button class="sort-btn active" data-sort="volume">依成交股數</button>
+    <button class="sort-btn" data-sort="amount">依成交金額</button>
+    <button class="sort-btn" data-sort="txn">依成交筆數</button>
+  </div>
+
+  <button class="refresh-btn" id="refreshBtn" onclick="loadData()">重新整理</button>
+</div>
+
+<div class="data-date" id="dataDateLabel"></div>
+
+<div class="card" id="tableContainer">
+  <div class="status-box">
+    <div class="spinner"></div>
+    <div>載入資料中…</div>
+  </div>
+</div>
+
+<p class="note">
+  ⚠️ 資料為收盤後更新，交易日 15:30 後可查詢當日資料。假日及休市日無資料。<br>
+  台灣股市：漲為紅色，跌為綠色（依慣例）。
+</p>
+
+<script>
+  let allData = [];
+  let currentSort = 'volume';
+  let dataDate = '';
+
+  // Field indices from TWSE STOCK_DAY_ALL
+  const F = {
+    code:    0,  // 證券代號
+    name:    1,  // 證券名稱
+    volume:  2,  // 成交股數
+    txn:     3,  // 成交筆數
+    amount:  4,  // 成交金額
+    open:    5,  // 開盤價
+    high:    6,  // 最高價
+    low:     7,  // 最低價
+    close:   8,  // 收盤價
+    change:  9,  // 漲跌價差
+  };
+
+  function todayStr() {
+    const d = new Date();
+    return d.toISOString().slice(0, 10);
+  }
+
+  function toTWSEDate(isoDate) {
+    return isoDate.replace(/-/g, '');
+  }
+
+  function parseNum(s) {
+    if (!s || s === '--' || s === 'N/A') return NaN;
+    return parseFloat(s.replace(/,/g, ''));
+  }
+
+  function fmtNum(n, decimals = 0) {
+    if (isNaN(n)) return '--';
+    return n.toLocaleString('zh-TW', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  }
+
+  function fmtVol(n) {
+    if (isNaN(n)) return '--';
+    if (n >= 1e8) return (n / 1e8).toFixed(2) + ' 億股';
+    if (n >= 1e4) return (n / 1e4).toFixed(1) + ' 萬股';
+    return fmtNum(n) + ' 股';
+  }
+
+  function fmtAmt(n) {
+    if (isNaN(n)) return '--';
+    if (n >= 1e8) return (n / 1e8).toFixed(2) + ' 億';
+    if (n >= 1e4) return (n / 1e4).toFixed(0) + ' 萬';
+    return fmtNum(n);
+  }
+
+  function sortKey(row) {
+    if (currentSort === 'volume') return parseNum(row[F.volume]);
+    if (currentSort === 'amount') return parseNum(row[F.amount]);
+    if (currentSort === 'txn')    return parseNum(row[F.txn]);
+    return 0;
+  }
+
+  function renderTable(data) {
+    const container = document.getElementById('tableContainer');
+    if (!data || data.length === 0) {
+      container.innerHTML = `<div class="status-box"><div class="error-icon">📭</div><div>查無資料，請選擇其他交易日。</div></div>`;
+      return;
+    }
+
+    const sorted = [...data]
+      .filter(r => r[F.code] && r[F.code].match(/^\d{4,6}$/))
+      .sort((a, b) => sortKey(b) - sortKey(a))
+      .slice(0, 10);
+
+    const maxSortVal = sortKey(sorted[0]) || 1;
+
+    const rankClass = i => i === 0 ? 'rank rank-1' : i === 1 ? 'rank rank-2' : i === 2 ? 'rank rank-3' : 'rank';
+    const rankLabel = i => ['🥇','🥈','🥉'][i] ?? (i + 1);
+
+    const changeClass = v => {
+      if (isNaN(v) || v === 0) return 'change-flat';
+      return v > 0 ? 'change-up' : 'change-down';
+    };
+    const changeLabel = v => {
+      if (isNaN(v) || v === 0) return '▬ 0.00';
+      return v > 0 ? `▲ +${v.toFixed(2)}` : `▼ ${v.toFixed(2)}`;
+    };
+
+    let rows = sorted.map((row, i) => {
+      const vol  = parseNum(row[F.volume]);
+      const amt  = parseNum(row[F.amount]);
+      const txn  = parseNum(row[F.txn]);
+      const close = parseNum(row[F.close]);
+      const chg   = parseNum(row[F.change]);
+      const barW  = Math.max(4, Math.round((sortKey(row) / maxSortVal) * 80));
+
+      return `<tr>
+        <td><span class="${rankClass(i)}">${rankLabel(i)}</span></td>
+        <td><span class="code">${row[F.code]}</span></td>
+        <td><span class="name">${row[F.name]}</span></td>
+        <td class="price">${isNaN(close) ? '--' : close.toFixed(2)}</td>
+        <td class="${changeClass(chg)}">${changeLabel(chg)}</td>
+        <td class="volume-bar-cell">
+          <div class="volume-bar-wrap">
+            <span class="vol-num">${fmtVol(vol)}</span>
+            <div class="bar" style="width:${barW}px"></div>
+          </div>
+        </td>
+        <td>${fmtAmt(amt)}</td>
+        <td>${isNaN(txn) ? '--' : fmtNum(txn)}</td>
+      </tr>`;
+    }).join('');
+
+    container.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>代號</th>
+            <th>名稱</th>
+            <th>收盤價</th>
+            <th>漲跌</th>
+            <th>成交股數</th>
+            <th>成交金額</th>
+            <th>成交筆數</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  async function fetchTWSE(dateStr) {
+    // Primary: TWSE RWD API (newer, more CORS-friendly)
+    const url = `https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL?response=json&date=${dateStr}`;
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    if (json.stat !== 'OK' && json.stat !== '成功') throw new Error(json.stat || '無資料');
+    return json;
+  }
+
+  async function loadData() {
+    const picker = document.getElementById('datePicker');
+    const dateISO = picker.value || todayStr();
+    picker.value = dateISO;
+    const dateStr = toTWSEDate(dateISO);
+
+    const container = document.getElementById('tableContainer');
+    const btn = document.getElementById('refreshBtn');
+    const label = document.getElementById('dataDateLabel');
+
+    container.innerHTML = `<div class="status-box"><div class="spinner"></div><div>載入資料中…</div></div>`;
+    btn.disabled = true;
+    label.textContent = '';
+
+    try {
+      const json = await fetchTWSE(dateStr);
+      allData = json.data || [];
+      dataDate = json.date || dateStr;
+
+      const y = dataDate.slice(0,4), m = dataDate.slice(4,6), d = dataDate.slice(6,8);
+      label.textContent = `資料日期：${y}/${m}/${d}　共 ${allData.length.toLocaleString()} 檔`;
+
+      renderTable(allData);
+    } catch (err) {
+      container.innerHTML = `
+        <div class="status-box">
+          <div class="error-icon">⚠️</div>
+          <div style="margin-bottom:8px;">無法取得資料</div>
+          <div style="font-size:0.8rem;color:#8b949e;">${err.message}</div>
+          <div style="font-size:0.78rem;margin-top:10px;color:#8b949e;">可能原因：非交易日、資料尚未更新，或網路封鎖跨來源請求 (CORS)。<br>請嘗試用本機伺服器開啟此頁面，或改選其他日期。</div>
+        </div>`;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // Sort buttons
+  document.querySelectorAll('.sort-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentSort = btn.dataset.sort;
+      renderTable(allData);
+    });
+  });
+
+  // Init
+  document.getElementById('datePicker').value = todayStr();
+  loadData();
+</script>
+</body>
+</html>
