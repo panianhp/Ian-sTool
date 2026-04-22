@@ -28,7 +28,7 @@
         <p style="color: #64748b;">(完全從雲端 API 獲取資料)</p>
     </div>
 
-    <button id="mainBtn" class="btn" onclick="getWords()">從雲端抓取 5 個隨機單字</button>
+    <button id="mainBtn" class="btn" onclick="getWords()">從雲端抓取 5 個單字（逐一查詢）</button>
     <div id="status"></div>
     <div id="resultArea"></div>
 </div>
@@ -37,52 +37,65 @@
     const statusText = document.getElementById('status');
     const resultArea = document.getElementById('resultArea');
     const btn = document.getElementById('mainBtn');
+    const TOEIC_TOPICS = [
+        'business', 'office', 'meeting', 'finance', 'accounting',
+        'marketing', 'sales', 'contract', 'shipping', 'travel'
+    ];
+
+    function getFrequencyScore(tags = []) {
+        const frequencyTag = tags.find(tag => tag.startsWith('f:'));
+        return frequencyTag ? Number(frequencyTag.replace('f:', '')) : 0;
+    }
+
+    function isLikelyToeicWord(item) {
+        const word = item.word || '';
+        const frequency = getFrequencyScore(item.tags || []);
+        return /^[a-z]+$/i.test(word) && word.length >= 4 && word.length <= 12 && frequency >= 2.3;
+    }
+
+    async function fetchToeicCandidates() {
+        const topic = TOEIC_TOPICS[Math.floor(Math.random() * TOEIC_TOPICS.length)];
+        const res = await fetch(`https://api.datamuse.com/words?topics=${encodeURIComponent(topic)}&max=100&md=f`);
+        const data = await res.json();
+        const candidates = data.filter(isLikelyToeicWord);
+        return { topic, candidates };
+    }
 
     async function getWords() {
         btn.disabled = true;
         resultArea.innerHTML = '';
-        statusText.innerText = "正在連線隨機單字庫...";
+        statusText.innerText = "正在連線 TOEIC 範圍單字庫...";
 
         try {
-            // 步驟 1: 隨機選一個英文字母當開頭，從 datamuse API 取得單字
-            const alphabet = 'abcdefghijklmnopqrstuvwxyz';
-            const randomChar = alphabet[Math.floor(Math.random() * alphabet.length)];
-            const res = await fetch(`https://api.datamuse.com/words?sp=${randomChar}???*&max=30&md=f`);
-            const data = await res.json();
-            const wordCandidates = data.map(w => w.word);
-            // 隨機選取 5 個單字
-            function getRandom(arr, n) {
-                const result = [];
-                const taken = new Set();
-                while (result.length < n && taken.size < arr.length) {
-                    const idx = Math.floor(Math.random() * arr.length);
-                    if (!taken.has(idx)) {
-                        result.push(arr[idx]);
-                        taken.add(idx);
-                    }
-                }
-                return result;
-            }
-            const randomWords = getRandom(wordCandidates, 5);
+            let successCount = 0;
+            const targetCount = 5;
 
-            let count = 0;
-            for (let word of randomWords) {
-                statusText.innerText = `正在分析第 ${count + 1} 個單字: ${word}...`;
-                // 步驟 2: 獲取該單字的詳細定義
+            for (let i = 0; i < targetCount; i++) {
+                const { topic, candidates } = await fetchToeicCandidates();
+                if (candidates.length === 0) {
+                    continue;
+                }
+
+                const selected = candidates[Math.floor(Math.random() * candidates.length)];
+                const word = selected.word;
+                statusText.innerText = `正在分析第 ${i + 1} 次單字（${topic}）: ${word}...`;
+
+                // 步驟 2: 每次只查一個單字的詳細定義
                 const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
                 if (dictRes.status === 200) {
                     const dictData = await dictRes.json();
                     renderCard(dictData[0]);
-                    count++;
+                    successCount++;
                 }
             }
-                if (count === 5) {
-                    statusText.innerText = "完成！今日挑戰已生成。";
-                } else if (count > 0) {
-                    statusText.innerText = `今日挑戰單字僅取得 ${count} 個，請稍後再試。`;
-                } else {
-                    statusText.innerText = "今日挑戰單字數不足，請稍後再試。";
-                }
+
+            if (successCount === targetCount) {
+                statusText.innerText = "完成！已逐一取得 5 個單字。";
+            } else if (successCount > 0) {
+                statusText.innerText = `完成！成功取得 ${successCount} 個單字。`;
+            } else {
+                statusText.innerText = "這次沒有查到可用定義，請再試一次。";
+            }
         } catch (err) {
             statusText.innerText = "連線失敗，請檢查網路！";
         } finally {
