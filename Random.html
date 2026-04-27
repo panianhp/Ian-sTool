@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Random Team Generator</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1 { text-align: center; color: #4a4e69; margin-bottom: 30px; font-weight: 800; }
+        
+        /* Layout for Inputs */
+        .input-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .input-section {
+            flex: 1;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            min-width: 300px;
+        }
+        
+        h3 { 
+            margin-top: 0; 
+            color: #22223b; 
+            border-bottom: 2px solid #f2f2f2; 
+            padding-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 15px;
+            line-height: 1.5;
+            box-sizing: border-box; 
+            resize: vertical;
+            font-family: monospace;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        button {
+            padding: 15px 40px;
+            background-color: #22223b;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s, background 0.3s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+        
+        button:active { transform: scale(0.98); }
+        button:hover { background-color: #4a4e69; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        
+        /* Result Grid */
+        .results-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .group-card {
+            background: white;
+            border-radius: 12px;
+            padding: 0;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+            overflow: hidden;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .group-header {
+            padding: 12px; /* Adjusted padding slightly */
+            text-align: center;
+            font-size: 1.25em; /* Reduced font size here */
+            font-weight: bold;
+            color: white;
+            letter-spacing: 1px;
+        }
+
+        .group-card.a .group-header { background-color: #e63946; } /* Red */
+        .group-card.b .group-header { background-color: #457b9d; } /* Blue */
+        .group-card.c .group-header { background-color: #2a9d8f; } /* Green */
+
+        .group-content { padding: 20px; }
+
+        .sub-list-title {
+            font-size: 0.75em;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            margin-top: 15px;
+            border-bottom: 1px solid #eee;
+            font-weight: bold;
+        }
+        .sub-list-title:first-child { margin-top: 0; }
+
+        .member-list { list-style: none; padding: 0; margin: 0; }
+        .member-list li { 
+            padding: 8px 0; 
+            font-size: 1.15em; 
+            font-weight: 500;
+            border-bottom: 1px dashed #f0f0f0;
+        }
+        .member-list li:last-child { border-bottom: none; }
+        
+        .total-count { 
+            display: inline-block;
+            margin-left: 8px;
+            font-size: 0.7em; 
+            font-weight: normal;
+            opacity: 0.9; 
+            vertical-align: middle;
+        }
+
+        /* --- Countdown Overlay --- */
+        #countdown-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(34, 34, 59, 0.95);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        #countdown-number {
+            font-size: 15rem;
+            color: #fff;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(255,255,255,0.5);
+            animation: pulse 1s infinite;
+        }
+        
+        #countdown-text {
+            font-size: 2rem;
+            color: #ccc;
+            margin-top: -20px;
+            font-weight: 300;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>🎲 Random Team Generator</h1>
+
+    <div class="input-container">
+        <div class="input-section">
+            <h3>Main</h3>
+            <textarea id="list1">Johnny Lin
+Robin Chen
+Stephen Huang
+Ernest Chen
+Galleta Hong
+Corner Lin
+Jim Kuo
+Eric Hsu
+Ho Kim
+Ian Pan</textarea>
+        </div>
+
+        <div class="input-section">
+            <h3>Support</h3>
+            <textarea id="list2">Shaun Hu
+Michelle Lee
+Susan Chen
+Jimmy Chang</textarea>
+        </div>
+        <div class="input-section">
+            <h3>Idea Pool</h3>
+            <textarea id="ideaPool">LP: Under OS comm 
+AMT - Lite
+Docking Debug
+Low Battery</textarea>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="startBtn" onclick="startCountdown()">🚀 Start Grouping</button>
+        <button id="assignIdeaBtn" onclick="assignIdeasOnly()">💡 Arrange Idea</button>
+    </div>
+
+    <div id="resultsArea" class="results-container">
+        </div>
+
+    <div id="countdown-overlay">
+        <div id="countdown-number">5</div>
+        <div id="countdown-text">Shuffling...</div>
+    </div>
+
+    <script>
+        // Start the countdown sequence
+        function startCountdown() {
+            // Check input
+            const rawList1 = document.getElementById('list1').value;
+            const rawList2 = document.getElementById('list2').value;
+            
+            if (cleanInput(rawList1).length === 0 && cleanInput(rawList2).length === 0) {
+                alert("Both lists are empty! Please enter some names.");
+                return;
+            }
+            // Check idea pool
+            const rawIdeas = document.getElementById('ideaPool').value;
+            if (cleanInput(rawIdeas).length === 0) {
+                alert("Idea Pool is empty! Please enter some ideas.");
+                return;
+            }
+
+            // Clear previous results
+            document.getElementById('resultsArea').innerHTML = '';
+            
+            // Show Overlay
+            const overlay = document.getElementById('countdown-overlay');
+            const numberDisplay = document.getElementById('countdown-number');
+            const btn = document.getElementById('startBtn');
+            
+            overlay.style.display = 'flex';
+            btn.disabled = true;
+
+            let count = 5;
+            numberDisplay.textContent = count;
+
+            const timer = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    numberDisplay.textContent = count;
+                } else {
+                    // Time's up
+                    clearInterval(timer);
+                    overlay.style.display = 'none';
+                    btn.disabled = false;
+                    distributeBoth(); // Run the logic
+                }
+            }, 1000);
+        }
+
+        function distributeBoth() {
+            const list1 = cleanInput(document.getElementById('list1').value);
+            const list2 = cleanInput(document.getElementById('list2').value);
+
+            // Shuffle both lists independently
+            shuffleArray(list1);
+            shuffleArray(list2);
+
+            // Initialize Groups
+            const groups = {
+                A: { list1: [], list2: [] },
+                B: { list1: [], list2: [] },
+                C: { list1: [], list2: [] }
+            };
+
+            // Distribute List 1 (Round Robin)
+            list1.forEach((name, index) => {
+                groups[getGroupKey(index)].list1.push(name);
+            });
+
+            // Distribute List 2 (Round Robin with Random Offset)
+            const offset = Math.floor(Math.random() * 3);
+            list2.forEach((name, index) => {
+                groups[getGroupKey(index + offset)].list2.push(name);
+            });
+
+            // Get ideas
+            const ideaList = cleanInput(document.getElementById('ideaPool').value);
+            shuffleArray(ideaList);
+            const groupKeys = ['A', 'B', 'C'];
+            groupKeys.forEach((key, idx) => {
+                groups[key].idea = ideaList.length > 0 ? ideaList[idx % ideaList.length] : '';
+            });
+            renderResults(groups);
+
+        }
+
+        // Assign ideas only to existing groups (no regrouping)
+        function assignIdeasOnly() {
+            // Check idea pool
+            const rawIdeas = document.getElementById('ideaPool').value;
+            if (cleanInput(rawIdeas).length === 0) {
+                alert("Idea Pool is empty! Please enter some ideas.");
+                return;
+            }
+
+            // Try to get current groups from the DOM (parse from resultsArea)
+            const container = document.getElementById('resultsArea');
+            if (!container || container.children.length === 0) {
+                alert("Please Group first before assigning ideas! Click 'Start Grouping' to create groups, then you can assign ideas without changing the groups.");
+                return;
+            }
+
+            // 取得現有分組資料（包含 leader）
+            const groups = { A: { list1: [], list2: [], leader: '' }, B: { list1: [], list2: [], leader: '' }, C: { list1: [], list2: [], leader: '' } };
+            const groupKeys = ['A', 'B', 'C'];
+            for (let i = 0; i < container.children.length; i++) {
+                const card = container.children[i];
+                const subTitles = card.querySelectorAll('.sub-list-title');
+                const memberLists = card.querySelectorAll('.member-list');
+                let leader = '';
+                for (let j = 0; j < subTitles.length; j++) {
+                    const title = subTitles[j].textContent;
+                    if (title.includes('Main')) {
+                        const lis = Array.from(memberLists[j].querySelectorAll('li'));
+                        groups[groupKeys[i]].list1 = lis.map(li => li.textContent.replace(' ⭐', '').trim());
+                        // 找出有黃色字體和星號的 li 當 leader
+                        const leaderLi = lis.find(li => li.style.color === 'rgb(255, 214, 0)' || li.innerHTML.includes('⭐'));
+                        if (leaderLi) {
+                            leader = leaderLi.textContent.replace(' ⭐', '').trim();
+                        }
+                    } else if (title.includes('Support')) {
+                        groups[groupKeys[i]].list2 = Array.from(memberLists[j].querySelectorAll('li')).map(li => li.textContent.trim());
+                    }
+                }
+                groups[groupKeys[i]].leader = leader;
+            }
+            // 重新分配 idea
+            const ideaList = cleanInput(rawIdeas);
+            const shuffled = [...ideaList];
+            shuffleArray(shuffled);
+            groupKeys.forEach((key, idx) => {
+                groups[key].idea = shuffled.length > 0 ? shuffled[idx % shuffled.length] : '';
+            });
+            // 用自訂 renderResults 保持 leader 不變
+            renderResultsWithLeader(groups);
+        }
+
+        // 渲染表格但保持 leader 不變
+        function renderResultsWithLeader(groups) {
+            const container = document.getElementById('resultsArea');
+            container.innerHTML = '';
+            const keys = ['A', 'B', 'C'];
+            keys.forEach(key => {
+                const data = groups[key];
+                const count1 = data.list1.length;
+                const count2 = data.list2.length;
+                const totalMembers = count1 + count2;
+                // 使用現有 leader
+                const leader = data.leader;
+                const card = document.createElement('div');
+                card.className = `group-card ${key.toLowerCase()}`;
+                let list1Html = data.list1.map(n => `<li${n === leader ? ' style=\"font-weight:bold;color:#FFD600;\"' : ''}>${n}${n === leader ? ' ⭐' : ''}</li>`).join('');
+                let list2Html = data.list2.map(n => `<li>${n}</li>`).join('');
+                card.innerHTML = `
+                    <div class=\"group-header\">
+                        Team ${key} 
+                        <span class=\"total-count\">(${totalMembers})</span>
+                        <div style=\"font-size:0.9em;margin-top:4px;\">Leader: <span style=\"font-weight:bold;color:#FFD600;\">${leader || '-'}<\/span><\/div>
+                        <div style=\"font-size:0.9em;margin-top:2px;\">Idea: <span style=\"font-weight:bold;color:#FFD600;\">${data.idea || '-'}<\/span><\/div>
+                    <\/div>
+                    <div class=\"group-content\">
+                        ${list1Html ? `<div class=\"sub-list-title\">From Main<\/div><ul class=\"member-list\">${list1Html}<\/ul>` : ''}
+                        ${list1Html && list2Html ? '<div style=\"height:15px\"><\/div>' : ''}
+                        ${list2Html ? `<div class=\"sub-list-title\">From Support<\/div><ul class=\"member-list\">${list2Html}<\/ul>` : ''}
+                    <\/div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Helper: Clean input text
+        function cleanInput(text) {
+            return text.split('\n').map(n => n.trim()).filter(n => n !== '');
+        }
+
+        // Helper: Fisher-Yates Shuffle
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // Helper: Get 'A', 'B', or 'C' based on index
+        function getGroupKey(index) {
+            const remainder = index % 3;
+            if (remainder === 0) return 'A';
+            if (remainder === 1) return 'B';
+            return 'C';
+        }
+
+        // Render Cards
+        function renderResults(groups) {
+            const container = document.getElementById('resultsArea');
+            container.innerHTML = '';
+
+            const keys = ['A', 'B', 'C'];
+            
+            keys.forEach(key => {
+                const data = groups[key];
+                const count1 = data.list1.length;
+                const count2 = data.list2.length;
+                const totalMembers = count1 + count2;
+
+                // Only Main group members can be leader
+                const mainMembers = [...data.list1];
+                let leader = '';
+                if (mainMembers.length > 0) {
+                    const leaderIdx = Math.floor(Math.random() * mainMembers.length);
+                    leader = mainMembers[leaderIdx];
+                }
+
+                const card = document.createElement('div');
+                card.className = `group-card ${key.toLowerCase()}`;
+
+                let list1Html = data.list1.map(n => `<li${n === leader ? ' style=\"font-weight:bold;color:#FFD600;\"' : ''}>${n}${n === leader ? ' ⭐' : ''}</li>`).join('');
+                let list2Html = data.list2.map(n => `<li>${n}</li>`).join('');
+
+                card.innerHTML = `
+                    <div class=\"group-header\">
+                        Team ${key} 
+                        <span class=\"total-count\">(${totalMembers})</span>
+                        <div style=\"font-size:0.9em;margin-top:4px;\">Leader: <span style=\"font-weight:bold;color:#FFD600;\">${leader || '-'}</span></div>
+                        <div style=\"font-size:0.9em;margin-top:2px;\">Idea: <span style=\"font-weight:bold;color:#FFD600;\">${data.idea || '-'}<\/span><\/div>
+                    </div>
+                    <div class=\"group-content\">
+                        ${list1Html ? `<div class=\"sub-list-title\">From Main</div><ul class=\"member-list\">${list1Html}</ul>` : ''}
+                        ${list1Html && list2Html ? '<div style=\"height:15px\"></div>' : ''}
+                        ${list2Html ? `<div class=\"sub-list-title\">From Support</div><ul class=\"member-list\">${list2Html}</ul>` : ''}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+    </script>
+</body>
+</html>
