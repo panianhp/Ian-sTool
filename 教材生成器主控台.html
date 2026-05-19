@@ -33,7 +33,9 @@ body {
   font-size: 1.8rem;
   background: linear-gradient(135deg, var(--primary), var(--accent));
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
+  color: transparent;
   margin-bottom: 6px;
 }
 .header p { color: var(--text-light); font-size: 0.9rem; }
@@ -336,8 +338,8 @@ textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--prima
   <div class="card">
     <div class="card-title"><span class="icon">📚</span> 科目選擇</div>
     <div class="subject-tabs">
-      <div class="subject-tab active" onclick="selectSubject('science')">🔬 自然科</div>
-      <div class="subject-tab" onclick="selectSubject('social')">🌍 社會科</div>
+      <div class="subject-tab active" onclick="selectSubject(this,'science')">🔬 自然科</div>
+      <div class="subject-tab" onclick="selectSubject(this,'social')">🌍 社會科</div>
     </div>
     <div id="subject-desc" style="font-size:0.8rem;color:var(--text-light);">已選擇：自然科（24 主題）</div>
   </div>
@@ -523,12 +525,12 @@ function init() {
   renderTopics();
 }
 
-function selectSubject(sub) {
+function selectSubject(el, sub) {
   state.subject = sub;
   state.topic = null;
   state.categoryFilter = null;
   document.querySelectorAll('.subject-tab').forEach(t => t.classList.remove('active'));
-  event.target.classList.add('active');
+  el.classList.add('active');
   document.getElementById('subject-desc').textContent = 
     sub === 'science' ? '已選擇：自然科（24 主題）' : '已選擇：社會科（18 主題）';
   renderCategoryChips();
@@ -580,7 +582,7 @@ function selectDifficulty(el, level) {
 
 function toggleViz(el) {
   el.classList.toggle('active');
-  state.viz = Array.from(document.querySelectorAll('.viz-option.active')).map(e => e.textContent.trim().slice(2));
+  state.viz = Array.from(document.querySelectorAll('.viz-option.active')).map(e => e.textContent.trim().replace(/^\S+\s*/, ''));
 }
 
 function toggleChar(el) {
