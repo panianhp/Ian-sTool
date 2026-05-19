@@ -329,7 +329,7 @@ textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--prima
 
 <div class="header">
   <h1>✨ 個人化超前教材製作系統</h1>
-  <p>為 5 歲幼稚園中班設計 ｜ 角色帶入 × 視覺教材 × AI 提示詞產生器</p>
+  <p>為 4-6 歲幼稚園中班／大班設計 ｜ 角色帶入 × 視覺教材 × AI 提示詞產生器</p>
 </div>
 
 <div class="grid-container">
@@ -348,12 +348,12 @@ textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--prima
   <div class="card">
     <div class="card-title"><span class="icon">🎯</span> 難易度</div>
     <div class="difficulty-bar">
-      <div class="diff-btn" onclick="selectDifficulty(this,'入門')">🌱 入門</div>
-      <div class="diff-btn active" onclick="selectDifficulty(this,'基礎')">🌿 基礎</div>
-      <div class="diff-btn" onclick="selectDifficulty(this,'進階')">🌳 進階</div>
-      <div class="diff-btn" onclick="selectDifficulty(this,'挑戰')">🏔️ 挑戰</div>
+      <div class="diff-btn" onclick="selectDifficulty(this,'中班基礎')">🌱 中班基礎</div>
+      <div class="diff-btn active" onclick="selectDifficulty(this,'中班進階')">🌿 中班進階</div>
+      <div class="diff-btn" onclick="selectDifficulty(this,'大班基礎')">🌳 大班基礎</div>
+      <div class="diff-btn" onclick="selectDifficulty(this,'大班進階')">🏔️ 大班進階</div>
     </div>
-    <p style="font-size:0.75rem;color:var(--text-light);margin-top:8px;">建議 5 歲使用「入門」或「基礎」</p>
+    <p style="font-size:0.75rem;color:var(--text-light);margin-top:8px;">中班（4-5歲）｜大班（5-6歲）依孩子程度選擇</p>
   </div>
 
   <!-- 3. 主題 (spans full width) -->
@@ -510,7 +510,7 @@ const characters = [
 let state = {
   subject: 'science',
   topic: null,
-  difficulty: '基礎',
+  difficulty: '中班進階',
   viz: ['圖表', '插圖', '對話框'],
   characters: ['Elsa', 'Anna'],
   style: '粉嫩',
@@ -633,8 +633,13 @@ function generatePrompt() {
   const prompt = `## 教材製作提示詞
 
 【角色設定】
-你是一位專為 5 歲幼稚園中班孩童設計教材的兒童教育專家。
+你是一位專為 4-6 歲幼稚園中班與大班孩童設計教材的兒童教育專家。
+目標難度：${state.difficulty}
 學習者特性：內在動機弱、不愛閱讀、習慣聽覺學習、需要角色帶入引導。
+中班基礎：認識形狀顏色、簡單因果、生活經驗連結，以圖為主文字極少。
+中班進階：簡單分類比較、初步觀察紀錄、短句搭配大量圖片。
+大班基礎：基礎邏輯推理、簡單實驗步驟、能理解短故事與圖文搭配。
+大班進階：多步驟思考、因果關係理解、能參與討論並表達想法。
 
 【教材基本資訊】
 - 科目：${subjectName}
@@ -649,7 +654,7 @@ ${selectedChars.map((c, i) => `  ${i + 1}. ${c}`).join('\n')}
 【教材結構要求】
 每一頁教材必須包含：
 1. 角色對話框（用角色的口吻說出知識點，語氣活潑、句子簡短）
-2. 一個核心知識點（適合 5 歲理解）
+2. 一個核心知識點（適合 ${state.difficulty} 程度理解）
 3. 視覺元素：${state.viz.join('、')}
 4. 互動提問（讓孩子回答或動手）
 5. 鼓勵語句（以角色口吻給予正向回饋）
@@ -661,7 +666,7 @@ ${selectedChars.map((c, i) => `  ${i + 1}. ${c}`).join('\n')}
 - 注音：所有中文字加上注音符號
 
 【教學設計原則】
-- 每頁文字量 < 30 字（不含注音）
+- 每頁文字量：中班基礎 < 15 字、中班進階 < 20 字、大班基礎 < 25 字、大班進階 < 30 字（不含注音）
 - 用「故事線」串連每一頁，角色遇到問題 → 探索 → 發現答案
 - 加入簡單的「動手做」或「找一找」互動環節
 - 最後一頁為「小小科學家/探險家證書」或成就回顧
