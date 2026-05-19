@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>個人化超前教材製作系統 - 主控台</title>
+<style>
+:root {
+  --primary: #7c3aed;
+  --primary-light: #ede9fe;
+  --accent: #ec4899;
+  --bg: #faf5ff;
+  --card: #ffffff;
+  --text: #1e1b4b;
+  --text-light: #6b7280;
+  --border: #e5e7eb;
+  --radius: 12px;
+  --shadow: 0 4px 20px rgba(124,58,237,0.08);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 20px;
+}
+.header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+.header h1 {
+  font-size: 1.8rem;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 6px;
+}
+.header p { color: var(--text-light); font-size: 0.9rem; }
+
+.grid-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+@media (max-width: 900px) {
+  .grid-container { grid-template-columns: 1fr; }
+}
+
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+.card-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-title .icon { font-size: 1.2rem; }
+
+/* Subject & Topic */
+.subject-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.subject-tab {
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 2px solid var(--primary);
+  background: white;
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.subject-tab.active, .subject-tab:hover {
+  background: var(--primary);
+  color: white;
+}
+
+.search-box {
+  width: 100%;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+  outline: none;
+}
+.search-box:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+
+.category-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.chip {
+  padding: 4px 12px;
+  border-radius: 14px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1.5px solid var(--border);
+  background: white;
+  transition: all 0.2s;
+}
+.chip.active { background: var(--primary); color: white; border-color: var(--primary); }
+.chip:hover { border-color: var(--primary); }
+
+.topic-list {
+  max-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 0;
+}
+.topic-item {
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  border: 1.5px solid var(--border);
+  background: #f9fafb;
+  transition: all 0.2s;
+}
+.topic-item:hover { border-color: var(--accent); background: #fdf2f8; }
+.topic-item.selected { background: var(--accent); color: white; border-color: var(--accent); }
+
+/* Difficulty */
+.difficulty-bar {
+  display: flex;
+  gap: 8px;
+}
+.diff-btn {
+  flex: 1;
+  padding: 10px;
+  text-align: center;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+.diff-btn:hover { border-color: var(--primary); }
+.diff-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+/* Visualization */
+.viz-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.viz-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+.viz-option:hover { border-color: var(--primary); }
+.viz-option.active { background: var(--primary-light); border-color: var(--primary); }
+
+/* Characters */
+.char-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.char-card {
+  padding: 10px;
+  border-radius: 10px;
+  border: 2px solid var(--border);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+.char-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.char-card.selected { border-color: var(--accent); background: #fdf2f8; }
+.char-card .emoji { font-size: 1.6rem; margin-bottom: 4px; }
+.char-card .name { font-size: 0.75rem; font-weight: 600; }
+.char-card .source { font-size: 0.65rem; color: var(--text-light); }
+.char-card .check {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 0.7rem;
+  color: var(--accent);
+  display: none;
+}
+.char-card.selected .check { display: block; }
+
+/* Visual Style */
+.style-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.style-card {
+  padding: 12px 8px;
+  border-radius: 10px;
+  text-align: center;
+  cursor: pointer;
+  border: 2px solid var(--border);
+  transition: all 0.2s;
+}
+.style-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.style-card.active { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+.style-card .preview {
+  width: 100%;
+  height: 32px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+.style-card .label { font-size: 0.8rem; font-weight: 600; }
+
+/* Pages */
+.pages-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pages-control button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--primary);
+  background: white;
+  color: var(--primary);
+  font-size: 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.pages-control button:hover { background: var(--primary); color: white; }
+.pages-control .count {
+  font-size: 1.5rem;
+  font-weight: 700;
+  min-width: 40px;
+  text-align: center;
+}
+.pages-control .hint { font-size: 0.8rem; color: var(--text-light); margin-left: 8px; }
+
+/* Extra */
+textarea {
+  width: 100%;
+  min-height: 60px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 0.85rem;
+  resize: vertical;
+  outline: none;
+  font-family: inherit;
+}
+textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+
+/* Output */
+.output-section {
+  grid-column: 1 / -1;
+}
+.output-area {
+  background: #1e1b4b;
+  color: #e0e7ff;
+  border-radius: var(--radius);
+  padding: 16px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  min-height: 200px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+.btn-generate {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  margin-top: 12px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.btn-generate:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(124,58,237,0.3); }
+.btn-copy {
+  margin-top: 8px;
+  padding: 8px 20px;
+  background: white;
+  border: 2px solid var(--primary);
+  color: var(--primary);
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-copy:hover { background: var(--primary); color: white; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>✨ 個人化超前教材製作系統</h1>
+  <p>為 5 歲幼稚園中班設計 ｜ 角色帶入 × 視覺教材 × AI 提示詞產生器</p>
+</div>
+
+<div class="grid-container">
+
+  <!-- 1. 科目 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">📚</span> 科目選擇</div>
+    <div class="subject-tabs">
+      <div class="subject-tab active" onclick="selectSubject('science')">🔬 自然科</div>
+      <div class="subject-tab" onclick="selectSubject('social')">🌍 社會科</div>
+    </div>
+    <div id="subject-desc" style="font-size:0.8rem;color:var(--text-light);">已選擇：自然科（24 主題）</div>
+  </div>
+
+  <!-- 2. 難易度 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">🎯</span> 難易度</div>
+    <div class="difficulty-bar">
+      <div class="diff-btn" onclick="selectDifficulty(this,'入門')">🌱 入門</div>
+      <div class="diff-btn active" onclick="selectDifficulty(this,'基礎')">🌿 基礎</div>
+      <div class="diff-btn" onclick="selectDifficulty(this,'進階')">🌳 進階</div>
+      <div class="diff-btn" onclick="selectDifficulty(this,'挑戰')">🏔️ 挑戰</div>
+    </div>
+    <p style="font-size:0.75rem;color:var(--text-light);margin-top:8px;">建議 5 歲使用「入門」或「基礎」</p>
+  </div>
+
+  <!-- 3. 主題 (spans full width) -->
+  <div class="card" style="grid-column: 1 / -1;">
+    <div class="card-title"><span class="icon">🏷️</span> 主題選擇</div>
+    <input type="text" class="search-box" id="topic-search" placeholder="🔍 搜尋主題關鍵字..." oninput="filterTopics()">
+    <div class="category-chips" id="category-chips"></div>
+    <div class="topic-list" id="topic-list"></div>
+  </div>
+
+  <!-- 4. 視覺化選項 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">🖼️</span> 視覺化選項</div>
+    <div class="viz-options">
+      <div class="viz-option active" onclick="toggleViz(this)">📊 圖表</div>
+      <div class="viz-option active" onclick="toggleViz(this)">🎨 插圖</div>
+      <div class="viz-option" onclick="toggleViz(this)">🗺️ 地圖</div>
+      <div class="viz-option active" onclick="toggleViz(this)">💬 對話框</div>
+      <div class="viz-option" onclick="toggleViz(this)">🧩 互動遊戲</div>
+      <div class="viz-option" onclick="toggleViz(this)">📝 學習單</div>
+      <div class="viz-option" onclick="toggleViz(this)">🎵 音樂節奏</div>
+      <div class="viz-option" onclick="toggleViz(this)">🎬 動畫分鏡</div>
+    </div>
+  </div>
+
+  <!-- 5. 角色 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">👸</span> 角色選擇（可多選）</div>
+    <div class="char-grid">
+      <div class="char-card selected" onclick="toggleChar(this)">
+        <span class="check">✓</span>
+        <div class="emoji">❄️</div>
+        <div class="name">Elsa</div>
+        <div class="source">冰雪奇緣</div>
+      </div>
+      <div class="char-card selected" onclick="toggleChar(this)">
+        <span class="check">✓</span>
+        <div class="emoji">🧡</div>
+        <div class="name">Anna</div>
+        <div class="source">冰雪奇緣</div>
+      </div>
+      <div class="char-card" onclick="toggleChar(this)">
+        <span class="check">✓</span>
+        <div class="emoji">💜</div>
+        <div class="name">乐佩</div>
+        <div class="source">長髮公主</div>
+      </div>
+      <div class="char-card" onclick="toggleChar(this)">
+        <span class="check">✓</span>
+        <div class="emoji">🌹</div>
+        <div class="name">Aurora</div>
+        <div class="source">睡美人</div>
+      </div>
+      <div class="char-card" onclick="toggleChar(this)">
+        <span class="check">✓</span>
+        <div class="emoji">👠</div>
+        <div class="name">仙杜瑞拉</div>
+        <div class="source">灰姑娘</div>
+      </div>
+      <div class="char-card" onclick="toggleChar(this)">
+        <span class="check">✓</span>
+        <div class="emoji">🍎</div>
+        <div class="name">白雪公主</div>
+        <div class="source">白雪公主</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. 視覺風格 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">🎨</span> 視覺風格</div>
+    <div class="style-grid">
+      <div class="style-card active" onclick="selectStyle(this,'粉嫩')">
+        <div class="preview" style="background:linear-gradient(135deg,#fce7f3,#fbcfe8,#f9a8d4);"></div>
+        <div class="label">🌸 粉嫩</div>
+      </div>
+      <div class="style-card" onclick="selectStyle(this,'活潑')">
+        <div class="preview" style="background:linear-gradient(135deg,#fef08a,#86efac,#67e8f9);"></div>
+        <div class="label">🎉 活潑</div>
+      </div>
+      <div class="style-card" onclick="selectStyle(this,'清爽')">
+        <div class="preview" style="background:linear-gradient(135deg,#bfdbfe,#ddd6fe,#e0e7ff);"></div>
+        <div class="label">💧 清爽</div>
+      </div>
+      <div class="style-card" onclick="selectStyle(this,'童趣')">
+        <div class="preview" style="background:linear-gradient(135deg,#fde68a,#fdba74,#fca5a5);"></div>
+        <div class="label">🧸 童趣</div>
+      </div>
+      <div class="style-card" onclick="selectStyle(this,'像素')">
+        <div class="preview" style="background:linear-gradient(135deg,#a78bfa,#818cf8,#6366f1); image-rendering:pixelated;"></div>
+        <div class="label">👾 像素</div>
+      </div>
+      <div class="style-card" onclick="selectStyle(this,'暗黑')">
+        <div class="preview" style="background:linear-gradient(135deg,#1e1b4b,#312e81,#4c1d95);"></div>
+        <div class="label">🌙 暗黑</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. 張數 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">📄</span> 教材張數</div>
+    <div class="pages-control">
+      <button onclick="changePages(-1)">−</button>
+      <div class="count" id="page-count">5</div>
+      <button onclick="changePages(1)">+</button>
+      <span class="hint">建議 3~8 張，維持注意力</span>
+    </div>
+  </div>
+
+  <!-- 8. 額外需求 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">💡</span> 額外需求</div>
+    <textarea id="extra-req" placeholder="例如：加入注音、用問答形式、加入貼紙獎勵機制、需要親子共讀指引..."></textarea>
+  </div>
+
+  <!-- Output -->
+  <div class="card output-section">
+    <div class="card-title"><span class="icon">⚡</span> AI 提示詞輸出</div>
+    <button class="btn-generate" onclick="generatePrompt()">🚀 生成教材提示詞</button>
+    <div class="output-area" id="output-area">點擊上方按鈕，根據你的設定生成完整的 AI 教材製作提示詞...</div>
+    <button class="btn-copy" onclick="copyOutput()">📋 複製提示詞</button>
+  </div>
+
+</div>
+
+<script>
+// === DATA ===
+const topicsData = {
+  science: {
+    "物理與力學": ["浮力與沉", "磁鐵的祕密", "光與影子", "聲音從哪來", "彈力與反彈", "滾動與摩擦"],
+    "生物與生態": ["種子發芽", "蝴蝶的一生", "動物的家", "食物鏈", "五感探索", "牙齒與身體"],
+    "地球與天文": ["白天與黑夜", "四季變化", "雲和雨", "彩虹的顏色", "月亮的形狀", "恐龍時代"],
+    "化學與材料": ["冰融化實驗", "泡泡的科學", "顏色混合", "酸甜苦辣", "紙的吸水力", "溶解與不溶解"]
+  },
+  social: {
+    "自我與家庭": ["我的身體", "我的情緒", "家人的角色", "家庭規矩"],
+    "社區與職業": ["社區裡的人", "醫生與護士", "消防員", "郵差的一天", "超市大冒險"],
+    "文化與節慶": ["農曆新年", "端午節", "中秋節", "萬聖節", "聖誕節"],
+    "地理與環境": ["臺灣在哪裡", "山和海", "環保小尖兵", "垃圾分類"]
+  }
+};
+
+const characters = [
+  { name: "Elsa", source: "冰雪奇緣", trait: "冰雪魔法、勇敢獨立" },
+  { name: "Anna", source: "冰雪奇緣", trait: "活潑樂觀、重視家人" },
+  { name: "乐佩", source: "長髮公主", trait: "好奇探索、充滿創意" },
+  { name: "Aurora", source: "睡美人", trait: "溫柔優雅、愛護動物" },
+  { name: "仙杜瑞拉", source: "灰姑娘", trait: "善良堅忍、相信夢想" },
+  { name: "白雪公主", source: "白雪公主", trait: "純真善良、動物朋友" }
+];
+
+// === STATE ===
+let state = {
+  subject: 'science',
+  topic: null,
+  difficulty: '基礎',
+  viz: ['圖表', '插圖', '對話框'],
+  characters: ['Elsa', 'Anna'],
+  style: '粉嫩',
+  pages: 5,
+  extra: '',
+  categoryFilter: null
+};
+
+// === INIT ===
+function init() {
+  renderCategoryChips();
+  renderTopics();
+}
+
+function selectSubject(sub) {
+  state.subject = sub;
+  state.topic = null;
+  state.categoryFilter = null;
+  document.querySelectorAll('.subject-tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('subject-desc').textContent = 
+    sub === 'science' ? '已選擇：自然科（24 主題）' : '已選擇：社會科（18 主題）';
+  renderCategoryChips();
+  renderTopics();
+}
+
+function renderCategoryChips() {
+  const container = document.getElementById('category-chips');
+  const cats = Object.keys(topicsData[state.subject]);
+  container.innerHTML = `<div class="chip ${!state.categoryFilter ? 'active' : ''}" onclick="filterCategory(null)">全部</div>` +
+    cats.map(c => `<div class="chip ${state.categoryFilter === c ? 'active' : ''}" onclick="filterCategory('${c}')">${c}</div>`).join('');
+}
+
+function filterCategory(cat) {
+  state.categoryFilter = cat;
+  renderCategoryChips();
+  renderTopics();
+}
+
+function renderTopics() {
+  const container = document.getElementById('topic-list');
+  const search = document.getElementById('topic-search').value.toLowerCase();
+  const data = topicsData[state.subject];
+  let html = '';
+  
+  for (const [cat, topics] of Object.entries(data)) {
+    if (state.categoryFilter && state.categoryFilter !== cat) continue;
+    for (const topic of topics) {
+      if (search && !topic.toLowerCase().includes(search)) continue;
+      const selected = state.topic === topic ? 'selected' : '';
+      html += `<div class="topic-item ${selected}" onclick="selectTopic('${topic}')">${topic}</div>`;
+    }
+  }
+  container.innerHTML = html || '<span style="color:var(--text-light);font-size:0.8rem;">找不到符合的主題</span>';
+}
+
+function filterTopics() { renderTopics(); }
+
+function selectTopic(topic) {
+  state.topic = topic;
+  renderTopics();
+}
+
+function selectDifficulty(el, level) {
+  state.difficulty = level;
+  document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function toggleViz(el) {
+  el.classList.toggle('active');
+  state.viz = Array.from(document.querySelectorAll('.viz-option.active')).map(e => e.textContent.trim().slice(2));
+}
+
+function toggleChar(el) {
+  el.classList.toggle('selected');
+  state.characters = Array.from(document.querySelectorAll('.char-card.selected')).map(e => e.querySelector('.name').textContent);
+}
+
+function selectStyle(el, style) {
+  state.style = style;
+  document.querySelectorAll('.style-card').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function changePages(delta) {
+  state.pages = Math.max(1, Math.min(12, state.pages + delta));
+  document.getElementById('page-count').textContent = state.pages;
+}
+
+// === GENERATE PROMPT ===
+function generatePrompt() {
+  state.extra = document.getElementById('extra-req').value;
+  
+  if (!state.topic) {
+    alert('請先選擇一個主題！');
+    return;
+  }
+  if (state.characters.length === 0) {
+    alert('請至少選擇一個角色！');
+    return;
+  }
+
+  const selectedChars = state.characters.map(name => {
+    const c = characters.find(ch => ch.name === name);
+    return c ? `${c.name}（${c.source}，${c.trait}）` : name;
+  });
+
+  const subjectName = state.subject === 'science' ? '自然科學' : '社會領域';
+  
+  const styleDesc = {
+    '粉嫩': '粉紅色系、柔和漸層、圓角設計、充滿愛心與花朵裝飾',
+    '活潑': '彩虹色系、高飽和度、動態感、星星與閃光效果',
+    '清爽': '淺藍白色系、簡潔留白、幾何圖形、清新自然',
+    '童趣': '暖色調、手繪風格、可愛表情、餅乾和糖果元素',
+    '像素': '像素風格、8-bit 復古遊戲感、方塊構成、電玩配色',
+    '暗黑': '深紫/深藍底色、螢光亮色文字、星空宇宙感、神秘氛圍'
+  };
+
+  const prompt = `## 教材製作提示詞
+
+【角色設定】
+你是一位專為 5 歲幼稚園中班孩童設計教材的兒童教育專家。
+學習者特性：內在動機弱、不愛閱讀、習慣聽覺學習、需要角色帶入引導。
+
+【教材基本資訊】
+- 科目：${subjectName}
+- 主題：${state.topic}
+- 難易度：${state.difficulty}
+- 總頁數：${state.pages} 頁
+
+【角色配置】
+請使用以下迪士尼公主角色來串場教學，以角色對話與冒險故事推進知識點：
+${selectedChars.map((c, i) => `  ${i + 1}. ${c}`).join('\n')}
+
+【教材結構要求】
+每一頁教材必須包含：
+1. 角色對話框（用角色的口吻說出知識點，語氣活潑、句子簡短）
+2. 一個核心知識點（適合 5 歲理解）
+3. 視覺元素：${state.viz.join('、')}
+4. 互動提問（讓孩子回答或動手）
+5. 鼓勵語句（以角色口吻給予正向回饋）
+
+【視覺風格】
+- 風格名稱：${state.style}
+- 風格描述：${styleDesc[state.style]}
+- 字體大小：適合幼兒閱讀（大字）
+- 注音：所有中文字加上注音符號
+
+【教學設計原則】
+- 每頁文字量 < 30 字（不含注音）
+- 用「故事線」串連每一頁，角色遇到問題 → 探索 → 發現答案
+- 加入簡單的「動手做」或「找一找」互動環節
+- 最後一頁為「小小科學家/探險家證書」或成就回顧
+- 語氣溫暖、正向、具鼓勵性${state.extra ? `\n\n【額外需求】\n${state.extra}` : ''}
+
+【輸出格式】
+請依序輸出第 1 頁到第 ${state.pages} 頁的完整內容，每頁包含：
+- 頁碼標題
+- 角色對話（指定哪個角色說）
+- 知識內容
+- 視覺描述（給繪圖 AI 的指令）
+- 互動環節
+- 鼓勵語`;
+
+  document.getElementById('output-area').textContent = prompt;
+}
+
+function copyOutput() {
+  const text = document.getElementById('output-area').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.btn-copy');
+    btn.textContent = '✅ 已複製！';
+    setTimeout(() => btn.textContent = '📋 複製提示詞', 2000);
+  });
+}
+
+// === INIT ===
+init();
+</script>
+</body>
+</html>
