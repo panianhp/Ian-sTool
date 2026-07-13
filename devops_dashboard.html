@@ -332,6 +332,13 @@
     <button class="btn btn-secondary" id="btnDone" disabled onclick="openDoneSummary()">✅ 月度結案</button>
     <button class="btn btn-secondary" id="btnWeekly" disabled onclick="openWeeklySummary()">🚀 自動週報</button>
     <button class="btn btn-green" id="btnExport" disabled onclick="exportCSV()">📥 匯出 CSV</button>
+    <input type="text" id="searchInput" placeholder="🔍 搜尋 ID 或標題..." oninput="filterTable(this.value)"
+        style="padding:7px 12px; border:1px solid #d0d8e8; border-radius:5px; font-size:13px; min-width:220px; outline:none; transition:border-color 0.2s;"
+        onfocus="this.style.borderColor='#0078d4'" onblur="this.style.borderColor='#d0d8e8'">
+    <input type="text" id="directIdInput" placeholder="🎯 指定 ID (逗號分隔)" onkeydown="if(event.key==='Enter')fetchByIds()"
+        style="padding:7px 12px; border:1px solid #d0d8e8; border-radius:5px; font-size:13px; min-width:200px; outline:none; transition:border-color 0.2s;"
+        onfocus="this.style.borderColor='#0078d4'" onblur="this.style.borderColor='#d0d8e8'">
+    <button class="btn btn-secondary" id="btnDirectFetch" onclick="fetchByIds()">🎯 查詢</button>
 
     <div class="legend">
         <div class="legend-item"><div class="legend-dot" style="background:#c0392b;"></div> P1 Urgent</div>
@@ -511,6 +518,40 @@
     </div>
 </div>
 
+<!-- ===== Modal: Direct ID Result ===== -->
+<div class="modal-overlay" id="modalDirectResult">
+    <div class="modal" style="max-width:1020px;">
+        <div class="modal-header">
+            <h3>🎯 指定 ID 查詢結果</h3>
+            <button class="modal-close" onclick="closeModal('modalDirectResult')">✕</button>
+        </div>
+        <div class="modal-body" style="padding:0;">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:80px;">ID</th>
+                            <th style="width:55px;">Pri</th>
+                            <th style="width:100px;">Type</th>
+                            <th>Title</th>
+                            <th style="width:100px;">State</th>
+                            <th style="width:140px;">Owner</th>
+                            <th style="width:120px;">Date</th>
+                            <th style="width:210px;">Area Path</th>
+                        </tr>
+                    </thead>
+                    <tbody id="directResultBody">
+                        <tr><td colspan="8" class="empty-state">請輸入 ID 後點擊查詢</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('modalDirectResult')">關閉</button>
+        </div>
+    </div>
+</div>
+
 <!-- ===================================================== -->
 <script>
 'use strict';
@@ -622,7 +663,7 @@ async function fetchData() {
             + `WHERE [System.TeamProject]='${cfg.project}' `
             + `AND [System.WorkItemType] NOT IN ('Epic','Value Stream','Initiative') `
             + `AND [System.State] NOT IN ('Done','Closed','Removed') `
-            + `AND [System.ChangedDate]>@Today-180 `
+            + `AND [System.ChangedDate]>@Today-365 `
             + `ORDER BY [Microsoft.VSTS.Common.Priority] ASC,[System.ChangedDate] DESC`;
 
         const qDone = `SELECT [System.Id] FROM WorkItems `
@@ -1011,6 +1052,77 @@ function showToast(msg, type = 'info') {
     toast.textContent = msg;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 3500);
+}
+
+// ─── Search Filter ───────────────────────────────────────
+function filterTable(query) {
+    const q = query.trim().toLowerCase();
+    ['all', 'stories', 'bugs'].forEach(name => {
+        const tbody = document.getElementById('tbody-' + name);
+        Array.from(tbody.rows).forEach(tr => {
+            if (tr.cells.length <= 1) return;
+            const id    = tr.cells[0]?.textContent.trim().toLowerCase() || '';
+            const title = tr.cells[3]?.textContent.trim().toLowerCase() || '';
+            tr.style.display = (!q || id.includes(q) || title.includes(q)) ? '' : 'none';
+        });
+    });
+}
+
+// ─── Direct ID Fetch (bypasses all filters) ──────────────
+async function fetchByIds() {
+    const cfg = getConfig();
+    if (!cfg.token) { showToast('請先輸入 PAT Token', 'error'); return; }
+
+    const raw = document.getElementById('directIdInput').value.trim();
+    if (!raw) { showToast('請輸入要查詢的 ID', 'warn'); return; }
+
+    const ids = raw.split(/[\s,，]+/).map(s => s.trim()).filter(Boolean);
+    if (ids.length === 0) return;
+
+    const btn = document.getElementById('btnDirectFetch');
+    btn.disabled = true;
+    btn.innerHTML = '⏳';
+
+    try {
+        const headers = buildHeaders(cfg.token);
+        const base    = `https://dev.azure.com/${cfg.org}`;
+        const data    = await apiGet(
+            `${base}/_apis/wit/workitems?ids=${ids.join(',')}&$expand=none&api-version=7.1`,
+            headers
+        );
+
+        const org     = document.getElementById('orgInput').value.trim();
+        const project = document.getElementById('projectInput').value.trim();
+        let html = '';
+
+        for (const item of (data.value || [])) {
+            const f      = item.fields;
+            const pri    = f['Microsoft.VSTS.Common.Priority'] ?? 4;
+            const url    = `https://dev.azure.com/${org}/${encodeURIComponent(project)}/_workitems/edit/${item.id}`;
+            const priCls = `pri-${Math.min(pri, 4)}`;
+            const date   = (f['System.ChangedDate'] || '').slice(0, 16).replace('T', ' ');
+            html += `<tr>
+                <td><a class="id-link" href="${url}" target="_blank" rel="noopener">${esc(item.id)}</a></td>
+                <td><span class="pri-badge ${priCls}">P${pri}</span></td>
+                <td>${esc(f['System.WorkItemType'] || '')}</td>
+                <td class="title-cell" title="${esc(f['System.Title'] || '')}">${esc(f['System.Title'] || '')}</td>
+                <td><span class="state-badge">${esc(f['System.State'] || '')}</span></td>
+                <td>${esc(f['System.AssignedTo']?.displayName || 'Unassigned')}</td>
+                <td style="white-space:nowrap;font-size:12px;color:#666;">${date}</td>
+                <td style="font-size:11px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:210px;" title="${esc(f['System.AreaPath'] || '')}">${esc(f['System.AreaPath'] || '')}</td>
+            </tr>`;
+        }
+
+        document.getElementById('directResultBody').innerHTML =
+            html || '<tr><td colspan="8" class="empty-state">找不到指定的 ID</td></tr>';
+        showModal('modalDirectResult');
+
+    } catch (err) {
+        showToast('❌ ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '🎯 查詢';
+    }
 }
 
 // ─── Utility ─────────────────────────────────────────────

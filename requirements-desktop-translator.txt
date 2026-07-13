@@ -1,0 +1,4 @@
+faster-whisper>=1.1.1
+soundcard>=0.4.3
+deep-translator>=1.11.4
+numpy>=2.3.0

@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>即時英翻中語音工具</title>
+  <style>
+    :root {
+      --bg: #f6efe7;
+      --panel: #fffaf3;
+      --text: #1f1a17;
+      --muted: #6a5f57;
+      --accent: #b6462f;
+      --accent-2: #2c6e6f;
+      --border: #dfd2c4;
+      --ok: #1f7a44;
+      --warn: #9a3412;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 10%, #f4d7bd 0%, transparent 34%),
+        radial-gradient(circle at 90% 80%, #c8e1db 0%, transparent 30%),
+        linear-gradient(135deg, #f8f3ed 0%, #efe7df 100%);
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: grid;
+      gap: 16px;
+    }
+
+    .hero {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 8px 26px rgba(86, 58, 33, 0.08);
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: clamp(1.4rem, 2.6vw, 2rem);
+      letter-spacing: 0.02em;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 8px 20px rgba(75, 58, 43, 0.07);
+    }
+
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 1rem;
+      letter-spacing: 0.02em;
+      color: var(--accent-2);
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    label {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    select,
+    button,
+    textarea {
+      font: inherit;
+    }
+
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: #fff;
+      color: var(--text);
+    }
+
+    textarea {
+      min-height: 130px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: transform 120ms ease, opacity 120ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+      transform: none;
+    }
+
+    .primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .secondary {
+      background: #d8e8e9;
+      color: #123536;
+    }
+
+    .ghost {
+      background: #efe7df;
+      color: #503c2d;
+    }
+
+    .status {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 10px;
+      background: #f8efe6;
+      color: #553d2d;
+      font-size: 0.92rem;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+
+    .status.ok {
+      background: #e8f7ee;
+      color: var(--ok);
+    }
+
+    .status.warn {
+      background: #fff1e8;
+      color: var(--warn);
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .chip {
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 999px;
+      padding: 4px 10px;
+    }
+
+    .footer-note {
+      color: #625850;
+      font-size: 0.85rem;
+      line-height: 1.45;
+    }
+
+    .hint {
+      margin: 8px 0 0;
+      color: #6b5a4d;
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section class="hero">
+      <h1>即時英翻中語音工具</h1>
+      <p class="subtitle">選擇麥克風後開始即時辨識英文，系統會同步翻譯成中文。適合線上會議、口語練習、快速聽打。</p>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>控制台</h2>
+        <div class="field">
+          <label for="sourceMode">來源模式</label>
+          <select id="sourceMode">
+            <option value="mic">麥克風</option>
+            <option value="system">電腦播放聲音（分享音訊）</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label id="audioSourceLabel" for="audioSource">音源（麥克風）</label>
+          <select id="audioSource"></select>
+          <p id="sourceHint" class="hint"></p>
+        </div>
+
+        <div class="controls">
+          <button id="refreshBtn" class="ghost" type="button">重新載入音源</button>
+          <button id="startBtn" class="primary" type="button">開始翻譯</button>
+          <button id="stopBtn" class="secondary" type="button" disabled>停止</button>
+          <button id="clearBtn" class="ghost" type="button">清空內容</button>
+        </div>
+
+        <div id="status" class="status">待命中。請先允許麥克風權限，並使用 Chromium 系列瀏覽器（Chrome / Edge）。</div>
+
+        <div class="meta">
+          <span id="listeningChip" class="chip">狀態：未啟動</span>
+          <span id="audioLevelChip" class="chip">音量：待測</span>
+          <span class="chip">語音：English (US)</span>
+          <span class="chip">翻譯：繁體中文</span>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>英文辨識（即時）</h2>
+        <textarea id="englishOutput" readonly placeholder="英文辨識結果會顯示在這裡..."></textarea>
+      </article>
+
+      <article class="card">
+        <h2>中文翻譯（即時）</h2>
+        <textarea id="chineseOutput" readonly placeholder="翻譯結果會顯示在這裡..."></textarea>
+      </article>
+    </section>
+
+    <section class="footer-note">
+      註：此版本使用瀏覽器內建語音辨識與 MyMemory 翻譯 API。免費 API 有流量與速度限制；若要更穩定，可改接 Azure / Google / OpenAI Whisper + 翻譯服務。
+    </section>
+  </main>
+
+  <script>
+    const sourceMode = document.getElementById("sourceMode");
+    const audioSourceLabel = document.getElementById("audioSourceLabel");
+    const audioSource = document.getElementById("audioSource");
+    const sourceHint = document.getElementById("sourceHint");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const statusEl = document.getElementById("status");
+    const englishOutput = document.getElementById("englishOutput");
+    const chineseOutput = document.getElementById("chineseOutput");
+    const listeningChip = document.getElementById("listeningChip");
+    const audioLevelChip = document.getElementById("audioLevelChip");
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    let listening = false;
+    let currentSourceMode = "mic";
+    let selectedDeviceId = "";
+    let capturedStream = null;
+    let audioContext = null;
+    let analyser = null;
+    let meterInterval = null;
+    let englishBuffer = "";
+    let chineseBuffer = "";
+    let interimTimer = null;
+    let lastInterimTranslated = "";
+
+    function setStatus(message, level = "") {
+      statusEl.textContent = message;
+      statusEl.className = `status ${level}`.trim();
+    }
+
+    async function appendChineseTranslation(text) {
+      if (!text || !text.trim()) {
+        return;
+      }
+
+      try {
+        const zh = await translateToChinese(text.trim());
+        chineseBuffer += zh + "\n";
+        chineseOutput.value = chineseBuffer.trim();
+        chineseOutput.scrollTop = chineseOutput.scrollHeight;
+      } catch (error) {
+        setStatus(`翻譯失敗：${error.message}`, "warn");
+      }
+    }
+
+    function updateListeningUI(isListening) {
+      listeningChip.textContent = isListening ? "狀態：收音中" : "狀態：未啟動";
+      startBtn.disabled = isListening;
+      stopBtn.disabled = !isListening;
+    }
+
+    async function ensureMicPermission() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(track => track.stop());
+        return true;
+      } catch (error) {
+        setStatus("無法取得麥克風權限。請確認瀏覽器已允許麥克風。", "warn");
+        return false;
+      }
+    }
+
+    async function loadAudioSources() {
+      if (currentSourceMode !== "mic") {
+        return;
+      }
+
+      const ok = await ensureMicPermission();
+      if (!ok) {
+        return;
+      }
+
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const mics = devices.filter(d => d.kind === "audioinput");
+
+      audioSource.innerHTML = "";
+
+      if (!mics.length) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "找不到可用麥克風";
+        audioSource.appendChild(opt);
+        setStatus("找不到麥克風裝置。", "warn");
+        return;
+      }
+
+      mics.forEach((mic, index) => {
+        const opt = document.createElement("option");
+        opt.value = mic.deviceId;
+        opt.textContent = mic.label || `麥克風 ${index + 1}`;
+        audioSource.appendChild(opt);
+      });
+
+      if (selectedDeviceId && mics.some(m => m.deviceId === selectedDeviceId)) {
+        audioSource.value = selectedDeviceId;
+      } else {
+        selectedDeviceId = audioSource.value;
+      }
+
+      setStatus(`已載入 ${mics.length} 個音源。`, "ok");
+    }
+
+    async function releaseCapturedStream() {
+      if (meterInterval) {
+        clearInterval(meterInterval);
+        meterInterval = null;
+      }
+      if (audioContext) {
+        await audioContext.close();
+        audioContext = null;
+        analyser = null;
+      }
+      audioLevelChip.textContent = "音量：待測";
+
+      if (capturedStream) {
+        capturedStream.getTracks().forEach(track => track.stop());
+        capturedStream = null;
+      }
+    }
+
+    function startAudioMeter(stream) {
+      if (!stream) {
+        return;
+      }
+
+      audioContext = new AudioContext();
+      const source = audioContext.createMediaStreamSource(stream);
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 1024;
+      source.connect(analyser);
+
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      let activeCount = 0;
+
+      meterInterval = setInterval(() => {
+        if (!analyser) {
+          return;
+        }
+
+        analyser.getByteFrequencyData(data);
+        const avg = data.reduce((sum, v) => sum + v, 0) / data.length;
+
+        if (avg > 6) {
+          activeCount += 1;
+          audioLevelChip.textContent = `音量：${Math.round(avg)}`;
+        } else {
+          audioLevelChip.textContent = "音量：接近 0";
+        }
+
+        if (currentSourceMode === "system" && activeCount === 0) {
+          setStatus("目前抓到的系統音訊接近 0。請確認你選的是『Chrome 分頁』，且有勾選『分享分頁音訊』。", "warn");
+        }
+      }, 600);
+    }
+
+    async function bindSelectedMic() {
+      await releaseCapturedStream();
+
+      selectedDeviceId = audioSource.value;
+      if (!selectedDeviceId) {
+        throw new Error("請先選擇音源");
+      }
+
+      // 維持指定麥克風串流，讓瀏覽器優先使用該輸入裝置。
+      capturedStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          deviceId: { exact: selectedDeviceId },
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+    }
+
+    async function bindSystemAudio() {
+      await releaseCapturedStream();
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+        throw new Error("此瀏覽器不支援系統音訊分享");
+      }
+
+      capturedStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: true
+      });
+
+      const [videoTrack] = capturedStream.getVideoTracks();
+      const settings = videoTrack ? videoTrack.getSettings() : {};
+      if (settings.displaySurface && settings.displaySurface !== "browser") {
+        setStatus("你目前不是分享瀏覽器分頁。YouTube 建議選『Chrome 分頁』並勾選分享音訊。", "warn");
+      }
+
+      const audioTracks = capturedStream.getAudioTracks();
+      if (!audioTracks.length) {
+        throw new Error("未取得音訊軌道。分享時請勾選「分享音訊」");
+      }
+
+      startAudioMeter(capturedStream);
+
+      audioTracks[0].addEventListener("ended", () => {
+        if (listening) {
+          stopTranslation();
+          setStatus("系統音訊分享已結束。", "warn");
+        }
+      });
+    }
+
+    function updateSourceModeUI(mode) {
+      currentSourceMode = mode;
+
+      if (mode === "mic") {
+        audioSourceLabel.textContent = "音源（麥克風）";
+        sourceHint.textContent = "可直接選擇實體麥克風或虛擬音訊輸入。";
+        audioSource.disabled = false;
+        refreshBtn.disabled = false;
+        loadAudioSources();
+        return;
+      }
+
+      audioSourceLabel.textContent = "音源（系統播放）";
+      sourceHint.textContent = "按開始後會跳出分享視窗，請勾選分享音訊。";
+      audioSource.innerHTML = "";
+      const opt = document.createElement("option");
+      opt.value = "system";
+      opt.textContent = "由分享視窗選擇系統音訊";
+      audioSource.appendChild(opt);
+      audioSource.disabled = true;
+      refreshBtn.disabled = true;
+      setStatus("已切換為系統播放模式。提醒：部分瀏覽器無法把分享音訊直接餵給語音辨識，若沒有辨識文字，建議改用虛擬音訊線做為麥克風輸入。", "warn");
+    }
+
+    async function translateToChinese(text) {
+      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|zh-TW`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`翻譯服務錯誤：${response.status}`);
+      }
+
+      const data = await response.json();
+      const translated = data?.responseData?.translatedText;
+      if (!translated) {
+        throw new Error("翻譯結果為空");
+      }
+      return translated;
+    }
+
+    function setupRecognition() {
+      if (!SpeechRecognition) {
+        setStatus("你的瀏覽器不支援 Web Speech API。請改用 Chrome 或 Edge。", "warn");
+        return null;
+      }
+
+      const rec = new SpeechRecognition();
+      rec.lang = "en-US";
+      rec.continuous = true;
+      rec.interimResults = true;
+
+      rec.onstart = () => {
+        listening = true;
+        updateListeningUI(true);
+        setStatus("辨識啟動中，正在即時翻譯...", "ok");
+      };
+
+      rec.onerror = (event) => {
+        setStatus(`辨識錯誤：${event.error}`, "warn");
+      };
+
+      rec.onend = () => {
+        if (listening) {
+          rec.start();
+        } else {
+          updateListeningUI(false);
+          setStatus("已停止辨識。", "");
+        }
+      };
+
+      rec.onresult = async (event) => {
+        let finalChunk = "";
+        let interimChunk = "";
+
+        for (let i = event.resultIndex; i < event.results.length; i += 1) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalChunk += transcript + " ";
+          } else {
+            interimChunk += transcript + " ";
+          }
+        }
+
+        englishOutput.value = (englishBuffer + interimChunk).trim();
+
+        if (interimChunk.trim()) {
+          const candidate = interimChunk.trim();
+          if (candidate !== lastInterimTranslated) {
+            if (interimTimer) {
+              clearTimeout(interimTimer);
+            }
+            interimTimer = setTimeout(async () => {
+              lastInterimTranslated = candidate;
+              await appendChineseTranslation(candidate);
+            }, 900);
+          }
+        }
+
+        if (finalChunk.trim()) {
+          if (interimTimer) {
+            clearTimeout(interimTimer);
+            interimTimer = null;
+          }
+
+          englishBuffer += finalChunk;
+          englishOutput.value = englishBuffer.trim();
+          lastInterimTranslated = "";
+          await appendChineseTranslation(finalChunk.trim());
+        }
+      };
+
+      return rec;
+    }
+
+    async function startTranslation() {
+      try {
+        if (currentSourceMode === "mic") {
+          await bindSelectedMic();
+        } else {
+          await bindSystemAudio();
+        }
+
+        if (!recognition) {
+          recognition = setupRecognition();
+        }
+        if (!recognition) {
+          return;
+        }
+
+        listening = true;
+        recognition.start();
+      } catch (error) {
+        setStatus(`無法啟動：${error.message}`, "warn");
+      }
+    }
+
+    function stopTranslation() {
+      listening = false;
+      if (interimTimer) {
+        clearTimeout(interimTimer);
+        interimTimer = null;
+      }
+      if (recognition) {
+        recognition.stop();
+      }
+      releaseCapturedStream();
+      updateListeningUI(false);
+    }
+
+    function clearOutputs() {
+      englishBuffer = "";
+      chineseBuffer = "";
+      lastInterimTranslated = "";
+      englishOutput.value = "";
+      chineseOutput.value = "";
+      setStatus("內容已清空。", "");
+    }
+
+    refreshBtn.addEventListener("click", loadAudioSources);
+    startBtn.addEventListener("click", startTranslation);
+    stopBtn.addEventListener("click", stopTranslation);
+    clearBtn.addEventListener("click", clearOutputs);
+    sourceMode.addEventListener("change", () => {
+      updateSourceModeUI(sourceMode.value);
+    });
+    audioSource.addEventListener("change", () => {
+      selectedDeviceId = audioSource.value;
+    });
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+      setStatus("此瀏覽器不支援裝置列舉 API，請改用新版本 Chrome / Edge。", "warn");
+    } else {
+      updateSourceModeUI("mic");
+    }
+  </script>
+</body>
+</html>
