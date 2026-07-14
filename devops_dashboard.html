@@ -366,6 +366,10 @@
     <select class="filter-select" id="filterOwner" onchange="applyFilters()">
         <option value="">全部</option>
     </select>
+    <label>Tag</label>
+    <select class="filter-select" id="filterTag" onchange="applyFilters()">
+        <option value="">全部</option>
+    </select>
     <div class="filter-divider"></div>
     <button class="btn btn-secondary" style="padding:5px 11px; font-size:12px;" onclick="clearFilters()">✕ 清除篩選</button>
     <span id="filterCount" style="font-size:12px; color:#888;"></span>
@@ -459,10 +463,11 @@
                         <th style="width:110px;" onclick="sortTable('all',4)">State</th>
                         <th style="width:160px;" onclick="sortTable('all',5)">Owner</th>
                         <th style="width:140px;" onclick="sortTable('all',6)">Date</th>
+                        <th style="width:180px;" onclick="sortTable('all',7)">Tags</th>
                     </tr>
                 </thead>
                 <tbody id="tbody-all">
-                    <tr><td colspan="7" class="empty-state">請點擊「更新數據」載入資料</td></tr>
+                    <tr><td colspan="8" class="empty-state">請點擊「更新數據」載入資料</td></tr>
                 </tbody>
             </table>
         </div>
@@ -481,10 +486,11 @@
                         <th style="width:110px;" onclick="sortTable('stories',4)">State</th>
                         <th style="width:160px;" onclick="sortTable('stories',5)">Owner</th>
                         <th style="width:140px;" onclick="sortTable('stories',6)">Date</th>
+                        <th style="width:180px;" onclick="sortTable('stories',7)">Tags</th>
                     </tr>
                 </thead>
                 <tbody id="tbody-stories">
-                    <tr><td colspan="7" class="empty-state">請點擊「更新數據」載入資料</td></tr>
+                    <tr><td colspan="8" class="empty-state">請點擊「更新數據」載入資料</td></tr>
                 </tbody>
             </table>
         </div>
@@ -503,10 +509,11 @@
                         <th style="width:110px;" onclick="sortTable('bugs',4)">State</th>
                         <th style="width:160px;" onclick="sortTable('bugs',5)">Owner</th>
                         <th style="width:140px;" onclick="sortTable('bugs',6)">Date</th>
+                        <th style="width:180px;" onclick="sortTable('bugs',7)">Tags</th>
                     </tr>
                 </thead>
                 <tbody id="tbody-bugs">
-                    <tr><td colspan="7" class="empty-state">請點擊「更新數據」載入資料</td></tr>
+                    <tr><td colspan="8" class="empty-state">請點擊「更新數據」載入資料</td></tr>
                 </tbody>
             </table>
         </div>
@@ -755,6 +762,11 @@ async function fetchData() {
                     ? (now - new Date(changedRaw.slice(0, 10))) / 86_400_000
                     : 999;
 
+                const rawTags = f['System.Tags'] || '';
+                const tags = rawTags
+                    ? rawTags.split(';').map(t => t.trim()).filter(Boolean)
+                    : [];
+
                 dataStore.push({
                     id:    item.id,
                     pri,
@@ -762,6 +774,7 @@ async function fetchData() {
                     title: f['System.Title']        || '',
                     state: f['System.State']        || '',
                     owner,
+                    tags,
                     date:  changedRaw.slice(0, 16).replace('T', ' '),
                     stale: daysStale > 14
                 });
@@ -782,6 +795,11 @@ async function fetchData() {
                 const owner = f['System.AssignedTo']?.displayName || 'Unassigned';
                 if (cfg.excludes.some(ex => owner.toLowerCase().includes(ex))) continue;
 
+                const rawTags = f['System.Tags'] || '';
+                const tags = rawTags
+                    ? rawTags.split(';').map(t => t.trim()).filter(Boolean)
+                    : ['(未標記)'];
+
                 doneStore.push({
                     id:    item.id,
                     pri:   f['Microsoft.VSTS.Common.Priority'] ?? 4,
@@ -789,6 +807,7 @@ async function fetchData() {
                     title: f['System.Title']        || '',
                     state: f['System.State']        || '',
                     owner,
+                    tags,
                     date:  (f['System.ChangedDate'] || '').slice(0, 16).replace('T', ' ')
                 });
             }
@@ -849,6 +868,11 @@ function createRow(item, org, project) {
     const staleTag = item.stale ? `<span class="stale-badge">(!)</span>` : '';
     const priLabel = item.pri <= 4 ? item.pri : '?';
 
+    const tagsHtml = item.tags.length
+        ? item.tags.map(t => `<span style="display:inline-block;background:#e8f0fe;color:#1a56c4;border-radius:10px;padding:1px 7px;font-size:11px;margin:1px 2px;white-space:nowrap;">${esc(t)}</span>`).join('')
+        : '<span style="color:#bbb;font-size:11px;">—</span>';
+
+    tr.dataset.tags = item.tags.join('|').toLowerCase();
     tr.innerHTML = `
         <td><a class="id-link" href="${url}" target="_blank" rel="noopener">${esc(item.id)}</a>${staleTag}</td>
         <td><span class="pri-badge ${priCls}">P${priLabel}</span></td>
@@ -857,6 +881,7 @@ function createRow(item, org, project) {
         <td><span class="state-badge">${esc(item.state)}</span></td>
         <td>${esc(item.owner)}</td>
         <td style="white-space:nowrap; font-size:12px; color:#666;">${item.date}</td>
+        <td style="max-width:180px;">${tagsHtml}</td>
     `;
     return tr;
 }
@@ -865,7 +890,7 @@ function populateTable(name, rows) {
     const tbody = document.getElementById('tbody-' + name);
     tbody.innerHTML = '';
     if (rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">無資料</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-state">無資料</td></tr>';
     } else {
         const frag = document.createDocumentFragment();
         rows.forEach(r => frag.appendChild(r));
@@ -981,20 +1006,70 @@ function renderOwnerReport(owner, items) {
 
 // ─── Done Summary ────────────────────────────────────────
 function openDoneSummary() {
-    const ownerDone = {};
-    for (const item of doneStore) {
-        (ownerDone[item.owner] = ownerDone[item.owner] || []).push(item);
+    const EXCLUDED_TAGS = new Set(['26PI1', '26PI2', '26PI3']);
+
+    // State → sub-category mapping
+    function classify(state) {
+        const s = state.toLowerCase();
+        if (['done', 'closed', 'resolved'].some(k => s.includes(k))) return 'Done';
+        if (['new', 'proposed', 'to do'].some(k => s.includes(k)))   return 'New';
+        return 'Ongoing';
     }
 
-    let text = '🏆 Monthly Achievement Summary\n' + '═'.repeat(56) + '\n';
-    const owners = Object.keys(ownerDone).sort();
-    if (owners.length === 0) {
-        text += '\n（近 30 天無結案項目）\n';
+    // Merge active + done items; deduplicate by id (done takes priority); stories & bugs only
+    const seen = new Set();
+    const allItems = [];
+    for (const item of [...doneStore, ...dataStore]) {
+        if (seen.has(item.id)) continue;
+        const t = item.type.toLowerCase();
+        if (!t.includes('story') && !t.includes('bug')) continue;
+        seen.add(item.id);
+        allItems.push(item);
+    }
+
+    // Group by tag → { Done:[], Ongoing:[], New:[] }
+    const tagMap = {};
+    for (const item of allItems) {
+        const itemTags = item.tags?.length ? item.tags : ['(未標記)'];
+        for (const tag of itemTags) {
+            if (EXCLUDED_TAGS.has(tag)) continue;
+            if (!tagMap[tag]) tagMap[tag] = { Done: [], Ongoing: [], New: [] };
+            tagMap[tag][classify(item.state)].push(item);
+        }
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const totalDone = allItems.filter(i => classify(i.state) === 'Done').length;
+    let text = `🏆 Monthly Tag Report — ${today}\n` + '═'.repeat(56) + '\n';
+    text += `進行中 ${dataStore.length} 筆 ／ 近期結案 ${doneStore.length} 筆\n`;
+
+    const tags = Object.keys(tagMap).sort((a, b) => {
+        if (a === '(未標記)') return 1;
+        if (b === '(未標記)') return -1;
+        return a.localeCompare(b);
+    });
+
+    if (tags.length === 0) {
+        text += '\n（無資料）\n';
     } else {
-        for (const owner of owners) {
-            text += `\n【${owner}】 (${ownerDone[owner].length} 件)\n`;
-            for (const item of ownerDone[owner]) {
-                text += `  ✔ #${item.id} [${item.type}] ${item.title}\n`;
+        for (const tag of tags) {
+            const g = tagMap[tag];
+            const total = g.Done.length + g.Ongoing.length + g.New.length;
+            text += `\n🏷️  ${tag}  (${total} 件)\n`;
+            text += '─'.repeat(46) + '\n';
+
+            const sections = [
+                { label: 'Done',    emoji: '✅', items: g.Done    },
+                { label: 'Ongoing', emoji: '🔄', items: g.Ongoing },
+                { label: 'New',     emoji: '🆕', items: g.New     },
+            ];
+            for (const { label, emoji, items } of sections) {
+                if (items.length === 0) continue;
+                text += `  ${emoji} ${label} (${items.length})\n`;
+                for (const item of items) {
+                    text += `    • #${item.id} [${item.type}] ${item.title}\n`;
+                    text += `      → ${item.owner} | ${item.state} | ${item.date}\n`;
+                }
             }
         }
     }
@@ -1119,6 +1194,7 @@ function populateFilterDropdowns() {
     const types  = [...new Set(dataStore.map(i => i.type))].sort();
     const states = [...new Set(dataStore.map(i => i.state))].sort();
     const owners = [...new Set(dataStore.map(i => i.owner))].sort();
+    const tags   = [...new Set(dataStore.flatMap(i => i.tags))].sort();
 
     function refill(id, values) {
         const sel = document.getElementById(id);
@@ -1135,6 +1211,7 @@ function populateFilterDropdowns() {
     refill('filterType',  types);
     refill('filterState', states);
     refill('filterOwner', owners);
+    refill('filterTag',   tags);
 }
 
 // ─── Apply All Filters ───────────────────────────────────
@@ -1144,8 +1221,9 @@ function applyFilters() {
     const type  = document.getElementById('filterType').value.toLowerCase();
     const state = document.getElementById('filterState').value.toLowerCase();
     const owner = document.getElementById('filterOwner').value.toLowerCase();
+    const tag   = document.getElementById('filterTag').value.toLowerCase();
 
-    const hasFilter = q || pri || type || state || owner;
+    const hasFilter = q || pri || type || state || owner || tag;
     document.getElementById('filterActiveBadge').style.display = hasFilter ? '' : 'none';
 
     let totalVisible = 0;
@@ -1160,13 +1238,15 @@ function applyFilters() {
             const rowTitle = tr.cells[3]?.textContent.trim().toLowerCase() || '';
             const rowState = tr.cells[4]?.textContent.trim().toLowerCase() || '';
             const rowOwner = tr.cells[5]?.textContent.trim().toLowerCase() || '';
+            const rowTags  = (tr.dataset.tags || '');
 
             const match =
                 (!q     || rowId.includes(q)    || rowTitle.includes(q)) &&
                 (!pri   || rowPri === pri) &&
                 (!type  || rowType === type) &&
                 (!state || rowState.includes(state)) &&
-                (!owner || rowOwner.includes(owner));
+                (!owner || rowOwner.includes(owner)) &&
+                (!tag   || rowTags.split('|').includes(tag));
 
             tr.style.display = match ? '' : 'none';
             if (match && name === 'all') totalVisible++;
@@ -1180,7 +1260,7 @@ function applyFilters() {
 // ─── Clear All Filters ───────────────────────────────────
 function clearFilters() {
     document.getElementById('searchInput').value = '';
-    ['filterPri','filterType','filterState','filterOwner'].forEach(id => {
+    ['filterPri','filterType','filterState','filterOwner','filterTag'].forEach(id => {
         document.getElementById(id).value = '';
     });
     applyFilters();
