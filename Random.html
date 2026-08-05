@@ -223,6 +223,83 @@
             100% { transform: scale(1); opacity: 1; }
         }
 
+        .idea-chip-panel {
+            margin-top: 14px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            background: #fff;
+            border: 1px solid #ececf3;
+            border-radius: 12px;
+            padding: 10px 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.06);
+        }
+
+        .idea-chip-title {
+            width: 100%;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 2px;
+        }
+
+        .idea-chip {
+            display: inline-block;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: #eef2ff;
+            color: #22223b;
+            font-size: 13px;
+            cursor: grab;
+            user-select: none;
+            border: 1px solid #dbe4ff;
+        }
+
+        .idea-chip:active { cursor: grabbing; }
+        .chip-empty { font-size: 12px; color: #888; }
+
+        .member-item[draggable="true"] { cursor: grab; }
+        .member-item.dragging { opacity: 0.45; }
+
+        .drop-zone {
+            border: 1px dashed transparent;
+            border-radius: 8px;
+            padding: 6px;
+            transition: 0.15s;
+        }
+
+        .drop-zone.drag-over {
+            border-color: #7c9cff;
+            background: #f4f7ff;
+        }
+
+        .idea-drop.drag-over {
+            outline: 2px dashed rgba(255,255,255,0.85);
+            outline-offset: -4px;
+        }
+
+        .empty-hint {
+            color: #999;
+            font-size: 0.95em;
+            border-bottom: none !important;
+        }
+
+        .member-item.leader-pick {
+            position: relative;
+            padding-right: 28px;
+        }
+
+        .member-item.leader-pick::after {
+            content: '👑';
+            position: absolute;
+            right: 0;
+            top: 8px;
+            font-size: 0.85em;
+            opacity: 0.35;
+        }
+
+        .member-item.leader-pick:hover::after {
+            opacity: 0.95;
+        }
     </style>
 </head>
 <body>
@@ -265,6 +342,10 @@ Low Battery</textarea>
         <button id="assignIdeaBtn" onclick="assignIdeasOnly()">💡 Arrange Idea</button>
     </div>
 
+    <div id="ideaChips" class="idea-chip-panel">
+        <div class="idea-chip-title">Drag idea chip to Team header to set idea</div>
+    </div>
+
     <div id="resultsArea" class="results-container">
         </div>
 
@@ -284,32 +365,42 @@ Low Battery</textarea>
     <script>
         const HISTORY_STORAGE_KEY = 'random-team-history-v1';
         const MAX_HISTORY_ITEMS = 3;
+        const GROUP_KEYS = ['A', 'B', 'C'];
+        let currentGroups = null;
+
+        function cloneGroups(obj) {
+            return JSON.parse(JSON.stringify(obj));
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/[&<>"']/g, s => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[s]));
+        }
 
         // Start the countdown sequence
         function startCountdown() {
-            // Check input
             const rawList1 = document.getElementById('list1').value;
             const rawList2 = document.getElementById('list2').value;
-            
+
             if (cleanInput(rawList1).length === 0 && cleanInput(rawList2).length === 0) {
                 alert("Both lists are empty! Please enter some names.");
                 return;
             }
-            // Check idea pool
+
             const rawIdeas = document.getElementById('ideaPool').value;
             if (cleanInput(rawIdeas).length === 0) {
                 alert("Idea Pool is empty! Please enter some ideas.");
                 return;
             }
 
-            // Clear previous results
             document.getElementById('resultsArea').innerHTML = '';
-            
-            // Show Overlay
+            currentGroups = null;
+
             const overlay = document.getElementById('countdown-overlay');
             const numberDisplay = document.getElementById('countdown-number');
             const btn = document.getElementById('startBtn');
-            
+
             overlay.style.display = 'flex';
             btn.disabled = true;
 
@@ -321,11 +412,10 @@ Low Battery</textarea>
                 if (count > 0) {
                     numberDisplay.textContent = count;
                 } else {
-                    // Time's up
                     clearInterval(timer);
                     overlay.style.display = 'none';
                     btn.disabled = false;
-                    distributeBoth(); // Run the logic
+                    distributeBoth();
                 }
             }, 1000);
         }
@@ -334,130 +424,264 @@ Low Battery</textarea>
             const list1 = cleanInput(document.getElementById('list1').value);
             const list2 = cleanInput(document.getElementById('list2').value);
 
-            // Shuffle both lists independently
             shuffleArray(list1);
             shuffleArray(list2);
 
-            // Initialize Groups
             const groups = {
-                A: { list1: [], list2: [] },
-                B: { list1: [], list2: [] },
-                C: { list1: [], list2: [] }
+                A: { list1: [], list2: [], leader: '', idea: '' },
+                B: { list1: [], list2: [], leader: '', idea: '' },
+                C: { list1: [], list2: [], leader: '', idea: '' }
             };
 
-            // Distribute List 1 (Round Robin)
             list1.forEach((name, index) => {
                 groups[getGroupKey(index)].list1.push(name);
             });
 
-            // Distribute List 2 (Round Robin with Random Offset)
             const offset = Math.floor(Math.random() * 3);
             list2.forEach((name, index) => {
                 groups[getGroupKey(index + offset)].list2.push(name);
             });
 
-            // Get ideas
             const ideaList = cleanInput(document.getElementById('ideaPool').value);
             shuffleArray(ideaList);
-            const groupKeys = ['A', 'B', 'C'];
-            groupKeys.forEach((key, idx) => {
+            GROUP_KEYS.forEach((key, idx) => {
                 groups[key].idea = ideaList.length > 0 ? ideaList[idx % ideaList.length] : '';
             });
-            renderResults(groups);
 
+            ensureLeaders(groups);
+            renderGroups(groups, 'Regrouped');
         }
 
-        // Assign ideas only to existing groups (no regrouping)
         function assignIdeasOnly() {
-            // Check idea pool
             const rawIdeas = document.getElementById('ideaPool').value;
             if (cleanInput(rawIdeas).length === 0) {
                 alert("Idea Pool is empty! Please enter some ideas.");
                 return;
             }
 
-            // Try to get current groups from the DOM (parse from resultsArea)
-            const container = document.getElementById('resultsArea');
-            if (!container || container.children.length === 0) {
-                alert("Please Group first before assigning ideas! Click 'Start Grouping' to create groups, then you can assign ideas without changing the groups.");
+            if (!currentGroups) {
+                alert("Please Group first before assigning ideas!");
                 return;
             }
 
-            // 取得現有分組資料（包含 leader）
-            const groups = { A: { list1: [], list2: [], leader: '' }, B: { list1: [], list2: [], leader: '' }, C: { list1: [], list2: [], leader: '' } };
-            const groupKeys = ['A', 'B', 'C'];
-            for (let i = 0; i < container.children.length; i++) {
-                const card = container.children[i];
-                const subTitles = card.querySelectorAll('.sub-list-title');
-                const memberLists = card.querySelectorAll('.member-list');
-                let leader = '';
-                for (let j = 0; j < subTitles.length; j++) {
-                    const title = subTitles[j].textContent;
-                    if (title.includes('Main')) {
-                        const lis = Array.from(memberLists[j].querySelectorAll('li'));
-                        groups[groupKeys[i]].list1 = lis.map(li => li.textContent.replace(' ⭐', '').trim());
-                        // 找出有黃色字體和星號的 li 當 leader
-                        const leaderLi = lis.find(li => li.style.color === 'rgb(255, 214, 0)' || li.innerHTML.includes('⭐'));
-                        if (leaderLi) {
-                            leader = leaderLi.textContent.replace(' ⭐', '').trim();
-                        }
-                    } else if (title.includes('Support')) {
-                        groups[groupKeys[i]].list2 = Array.from(memberLists[j].querySelectorAll('li')).map(li => li.textContent.trim());
-                    }
-                }
-                groups[groupKeys[i]].leader = leader;
-            }
-            // 重新分配 idea
+            const groups = cloneGroups(currentGroups);
             const ideaList = cleanInput(rawIdeas);
             const shuffled = [...ideaList];
             shuffleArray(shuffled);
-            groupKeys.forEach((key, idx) => {
+
+            GROUP_KEYS.forEach((key, idx) => {
                 groups[key].idea = shuffled.length > 0 ? shuffled[idx % shuffled.length] : '';
             });
-            // 用自訂 renderResults 保持 leader 不變
-            renderResultsWithLeader(groups);
+
+            ensureLeaders(groups);
+            renderGroups(groups, 'Ideas Re-assigned');
         }
 
-        // 渲染表格但保持 leader 不變
-        function renderResultsWithLeader(groups) {
+        function ensureLeaders(groups) {
+            GROUP_KEYS.forEach(key => {
+                const mains = groups[key].list1 || [];
+                if (!mains.length) {
+                    groups[key].leader = '';
+                    return;
+                }
+                if (!mains.includes(groups[key].leader)) {
+                    groups[key].leader = mains[Math.floor(Math.random() * mains.length)];
+                }
+            });
+        }
+
+        function renderGroups(groups, actionLabel) {
             const container = document.getElementById('resultsArea');
-            archiveCurrentResults('Ideas Re-assigned');
+            if (actionLabel) archiveCurrentResults(actionLabel);
             container.innerHTML = '';
-            const keys = ['A', 'B', 'C'];
-            keys.forEach(key => {
+
+            GROUP_KEYS.forEach(key => {
                 const data = groups[key];
-                const count1 = data.list1.length;
-                const count2 = data.list2.length;
-                const totalMembers = count1 + count2;
-                // 使用現有 leader
-                const leader = data.leader;
+                const totalMembers = data.list1.length + data.list2.length;
+                const leader = data.leader || '';
+
+                const list1Html = (data.list1.length ? data.list1 : ['']).map(n =>
+                    n
+                        ? `<li class="member-item leader-pick" title="Click to set as leader" draggable="true" data-name="${escapeHtml(n)}" data-group="${key}" data-type="list1"${n === leader ? ' style="font-weight:bold;color:#FFD600;"' : ''}>${escapeHtml(n)}${n === leader ? ' ⭐' : ''}</li>`
+                        : `<li class="empty-hint">Drop member here</li>`
+                ).join('');
+
+                const list2Html = (data.list2.length ? data.list2 : ['']).map(n =>
+                    n
+                        ? `<li class="member-item" draggable="true" data-name="${escapeHtml(n)}" data-group="${key}" data-type="list2">${escapeHtml(n)}</li>`
+                        : `<li class="empty-hint">Drop member here</li>`
+                ).join('');
+
                 const card = document.createElement('div');
                 card.className = `group-card ${key.toLowerCase()}`;
-                let list1Html = data.list1.map(n => `<li${n === leader ? ' style=\"font-weight:bold;color:#FFD600;\"' : ''}>${n}${n === leader ? ' ⭐' : ''}</li>`).join('');
-                let list2Html = data.list2.map(n => `<li>${n}</li>`).join('');
                 card.innerHTML = `
-                    <div class=\"group-header\">
-                        Team ${key} 
-                        <span class=\"total-count\">(${totalMembers})</span>
-                        <div style=\"font-size:0.9em;margin-top:4px;\">Leader: <span style=\"font-weight:bold;color:#FFD600;\">${leader || '-'}<\/span><\/div>
-                        <div style=\"font-size:0.9em;margin-top:2px;\">Idea: <span style=\"font-weight:bold;color:#FFD600;\">${data.idea || '-'}<\/span><\/div>
-                    <\/div>
-                    <div class=\"group-content\">
-                        ${list1Html ? `<div class=\"sub-list-title\">From Main<\/div><ul class=\"member-list\">${list1Html}<\/ul>` : ''}
-                        ${list1Html && list2Html ? '<div style=\"height:15px\"><\/div>' : ''}
-                        ${list2Html ? `<div class=\"sub-list-title\">From Support<\/div><ul class=\"member-list\">${list2Html}<\/ul>` : ''}
-                    <\/div>
+                    <div class="group-header idea-drop" data-group="${key}">
+                        Team ${key}
+                        <span class="total-count">(${totalMembers})</span>
+                        <div style="font-size:0.9em;margin-top:4px;">Leader: <span style="font-weight:bold;color:#FFD600;">${escapeHtml(leader || '-')}</span></div>
+                        <div style="font-size:0.9em;margin-top:2px;">Idea: <span style="font-weight:bold;color:#FFD600;">${escapeHtml(data.idea || '-')}</span></div>
+                    </div>
+                    <div class="group-content">
+                        <div class="drop-zone" data-group="${key}" data-type="list1">
+                            <div class="sub-list-title">From Main</div>
+                            <ul class="member-list">${list1Html}</ul>
+                        </div>
+                        <div style="height:12px"></div>
+                        <div class="drop-zone" data-group="${key}" data-type="list2">
+                            <div class="sub-list-title">From Support</div>
+                            <ul class="member-list">${list2Html}</ul>
+                        </div>
+                    </div>
                 `;
                 container.appendChild(card);
             });
+
+            currentGroups = cloneGroups(groups);
+            bindDragDrop();
         }
 
-        // Helper: Clean input text
+        function bindDragDrop() {
+            document.querySelectorAll('.member-item').forEach(el => {
+                el.addEventListener('dragstart', e => {
+                    el.classList.add('dragging');
+                    const payload = {
+                        kind: 'member',
+                        name: el.dataset.name,
+                        fromGroup: el.dataset.group,
+                        fromType: el.dataset.type
+                    };
+                    e.dataTransfer.setData('text/plain', JSON.stringify(payload));
+                });
+                el.addEventListener('dragend', () => el.classList.remove('dragging'));
+            });
+
+            // 新增：點擊 Main 成員直接設 Leader
+            document.querySelectorAll('.member-item[data-type="list1"]').forEach(el => {
+                el.addEventListener('click', () => {
+                    setLeaderByPick(el.dataset.group, el.dataset.name);
+                });
+            });
+
+            document.querySelectorAll('.drop-zone').forEach(zone => {
+                zone.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    zone.classList.add('drag-over');
+                });
+                zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+                zone.addEventListener('drop', e => {
+                    e.preventDefault();
+                    zone.classList.remove('drag-over');
+
+                    const txt = e.dataTransfer.getData('text/plain');
+                    if (!txt) return;
+                    let payload = null;
+                    try { payload = JSON.parse(txt); } catch { return; }
+                    if (!payload || payload.kind !== 'member') return;
+
+                    moveMemberByDrag(
+                        payload.name,
+                        payload.fromGroup,
+                        payload.fromType,
+                        zone.dataset.group,
+                        zone.dataset.type
+                    );
+                });
+            });
+
+            document.querySelectorAll('.idea-drop').forEach(header => {
+                header.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    header.classList.add('drag-over');
+                });
+                header.addEventListener('dragleave', () => header.classList.remove('drag-over'));
+                header.addEventListener('drop', e => {
+                    e.preventDefault();
+                    header.classList.remove('drag-over');
+
+                    const txt = e.dataTransfer.getData('text/plain');
+                    if (!txt) return;
+                    let payload = null;
+                    try { payload = JSON.parse(txt); } catch { return; }
+
+                    if (payload?.kind === 'idea') {
+                        applyIdeaByDrag(payload.idea, header.dataset.group);
+                        return;
+                    }
+
+                    // 新增：把 Main 成員拖到 Team Header 設 Leader（跨組會先移動）
+                    if (payload?.kind === 'member') {
+                        setLeaderByDrop(payload, header.dataset.group);
+                    }
+                });
+            });
+
+            bindIdeaChipDrag();
+        }
+
+        function moveMemberByDrag(name, fromGroup, fromType, toGroup, toType) {
+            if (!currentGroups || !name) return;
+            if (fromGroup === toGroup && fromType === toType) return;
+
+            const groups = cloneGroups(currentGroups);
+            const src = groups[fromGroup]?.[fromType];
+            const dst = groups[toGroup]?.[toType];
+            if (!src || !dst) return;
+
+            const idx = src.indexOf(name);
+            if (idx < 0) return;
+
+            src.splice(idx, 1);
+            dst.push(name);
+
+            if (fromType === 'list1' && groups[fromGroup].leader === name) {
+                groups[fromGroup].leader = '';
+            }
+
+            ensureLeaders(groups);
+            renderGroups(groups, 'Drag Member Adjusted');
+        }
+
+        function applyIdeaByDrag(idea, targetGroup) {
+            if (!currentGroups || !targetGroup) return;
+            const groups = cloneGroups(currentGroups);
+            groups[targetGroup].idea = (idea || '').trim();
+            ensureLeaders(groups);
+            renderGroups(groups, 'Drag Idea Adjusted');
+        }
+
+        function renderIdeaChips() {
+            const panel = document.getElementById('ideaChips');
+            if (!panel) return;
+
+            const ideas = cleanInput(document.getElementById('ideaPool').value);
+            if (!ideas.length) {
+                panel.innerHTML = `
+                    <div class="idea-chip-title">Drag idea chip to Team header to set idea</div>
+                    <span class="chip-empty">No ideas</span>
+                `;
+                return;
+            }
+
+            panel.innerHTML =
+                `<div class="idea-chip-title">Drag idea chip to Team header to set idea</div>` +
+                ideas.map(i => `<span class="idea-chip" draggable="true" data-idea="${escapeHtml(i)}">${escapeHtml(i)}</span>`).join('');
+
+            bindIdeaChipDrag();
+        }
+
+        function bindIdeaChipDrag() {
+            document.querySelectorAll('.idea-chip').forEach(chip => {
+                chip.addEventListener('dragstart', e => {
+                    const payload = { kind: 'idea', idea: chip.dataset.idea || chip.textContent || '' };
+                    e.dataTransfer.setData('text/plain', JSON.stringify(payload));
+                });
+            });
+        }
+
         function cleanInput(text) {
             return text.split('\n').map(n => n.trim()).filter(n => n !== '');
         }
 
-        // Helper: Fisher-Yates Shuffle
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -465,7 +689,6 @@ Low Battery</textarea>
             }
         }
 
-        // Helper: Get 'A', 'B', or 'C' based on index
         function getGroupKey(index) {
             const remainder = index % 3;
             if (remainder === 0) return 'A';
@@ -473,67 +696,18 @@ Low Battery</textarea>
             return 'C';
         }
 
-        // Render Cards
-        function renderResults(groups) {
-            const container = document.getElementById('resultsArea');
-            archiveCurrentResults('Regrouped');
-            container.innerHTML = '';
-
-            const keys = ['A', 'B', 'C'];
-            
-            keys.forEach(key => {
-                const data = groups[key];
-                const count1 = data.list1.length;
-                const count2 = data.list2.length;
-                const totalMembers = count1 + count2;
-
-                // Only Main group members can be leader
-                const mainMembers = [...data.list1];
-                let leader = '';
-                if (mainMembers.length > 0) {
-                    const leaderIdx = Math.floor(Math.random() * mainMembers.length);
-                    leader = mainMembers[leaderIdx];
-                }
-
-                const card = document.createElement('div');
-                card.className = `group-card ${key.toLowerCase()}`;
-
-                let list1Html = data.list1.map(n => `<li${n === leader ? ' style=\"font-weight:bold;color:#FFD600;\"' : ''}>${n}${n === leader ? ' ⭐' : ''}</li>`).join('');
-                let list2Html = data.list2.map(n => `<li>${n}</li>`).join('');
-
-                card.innerHTML = `
-                    <div class=\"group-header\">
-                        Team ${key} 
-                        <span class=\"total-count\">(${totalMembers})</span>
-                        <div style=\"font-size:0.9em;margin-top:4px;\">Leader: <span style=\"font-weight:bold;color:#FFD600;\">${leader || '-'}</span></div>
-                        <div style=\"font-size:0.9em;margin-top:2px;\">Idea: <span style=\"font-weight:bold;color:#FFD600;\">${data.idea || '-'}<\/span><\/div>
-                    </div>
-                    <div class=\"group-content\">
-                        ${list1Html ? `<div class=\"sub-list-title\">From Main</div><ul class=\"member-list\">${list1Html}</ul>` : ''}
-                        ${list1Html && list2Html ? '<div style=\"height:15px\"></div>' : ''}
-                        ${list2Html ? `<div class=\"sub-list-title\">From Support</div><ul class=\"member-list\">${list2Html}</ul>` : ''}
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        }
-
         function archiveCurrentResults(actionLabel) {
             const current = document.getElementById('resultsArea');
             const history = document.getElementById('historyArea');
 
-            if (!current || !history || current.children.length === 0) {
-                return;
-            }
+            if (!current || !history || current.children.length === 0) return;
 
             const item = document.createElement('div');
             item.className = 'history-item';
 
             const meta = document.createElement('div');
             meta.className = 'history-meta';
-            const now = new Date();
-            const timestamp = now.toLocaleString();
-            meta.textContent = `${actionLabel} at ${timestamp}`;
+            meta.textContent = `${actionLabel} at ${new Date().toLocaleString()}`;
 
             const snapshot = document.createElement('div');
             snapshot.className = 'results-container';
@@ -575,7 +749,10 @@ Low Battery</textarea>
             }
         }
 
+        document.getElementById('ideaPool').addEventListener('input', renderIdeaChips);
+
         loadHistoryFromStorage();
+        renderIdeaChips();
     </script>
 </body>
 </html>
