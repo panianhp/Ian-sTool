@@ -389,7 +389,7 @@
     <button class="btn btn-secondary" id="btnWeekly" disabled onclick="openWeeklySummary()">🚀 Auto Weekly Report</button>
     <button class="btn btn-green" id="btnExport" disabled onclick="exportCSV()">📥 Export CSV</button>
     <button class="btn btn-secondary" id="btnFilter" onclick="toggleFilterBar()">🔎 Filter <span id="filterActiveBadge" style="display:none;" class="filter-active-badge">!</span></button>
-    <input type="text" id="searchInput" placeholder="🔍 搜尋 ID 或標題..." oninput="filterTable(this.value)"
+    <input type="text" id="searchInput" placeholder="🔍 Search ID or Title..." oninput="filterTable(this.value)"
         style="padding:7px 12px; border:1px solid #d0d8e8; border-radius:5px; font-size:13px; min-width:220px; outline:none; transition:border-color 0.2s;"
         onfocus="this.style.borderColor='#0078d4'" onblur="this.style.borderColor='#d0d8e8'">
     <input type="text" id="directIdInput" placeholder="🎯 Enter IDs (comma-separated)" onkeydown="if(event.key==='Enter')fetchByIds()"
@@ -450,7 +450,7 @@
     <div class="tab-content active" id="tab-all">
         <div class="loading" id="loadingSpinner">
             <div class="spinner"></div>
-            <div>正在向 Azure DevOps 查詢...</div>
+            <div>Querying Azure DevOps...</div>
         </div>
         <div class="table-wrapper" id="wrapper-all">
             <table>
@@ -1050,12 +1050,12 @@ function openDoneSummary() {
     });
 
     if (tags.length === 0) {
-        text += '\n（無資料）\n';
+        text += '\n(No data)\n';
     } else {
         for (const tag of tags) {
             const g = tagMap[tag];
             const total = g.Done.length + g.Ongoing.length + g.New.length;
-            text += `\n🏷️  ${tag}  (${total} 件)\n`;
+            text += `\n🏷️  ${tag}  (${total} items)\n`;
             text += '─'.repeat(46) + '\n';
 
             const sections = [
