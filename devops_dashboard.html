@@ -236,6 +236,71 @@
         .type-title { color: #d9534f; font-weight: bold; font-size: 13px; margin: 10px 0 4px; }
         .work-item { margin: 3px 0 3px 14px; }
 
+        /* === Monthly Report UI === */
+        .monthly-root { display: flex; flex-direction: column; gap: 12px; }
+        .monthly-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 10px;
+        }
+        .monthly-stat {
+            background: #f7faff;
+            border: 1px solid #dbe8fb;
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+        .monthly-stat .k { font-size: 11px; color: #5f6e86; text-transform: uppercase; letter-spacing: 0.4px; }
+        .monthly-stat .v { font-size: 22px; font-weight: 700; color: #1f3a66; margin-top: 3px; }
+        .monthly-meta {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 12px; color: #667;
+            padding: 0 2px;
+        }
+        .tag-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 10px;
+        }
+        .tag-card {
+            border: 1px solid #dfe7f5;
+            border-radius: 8px;
+            background: #fff;
+            overflow: hidden;
+        }
+        .tag-card-header {
+            background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 100%);
+            border-bottom: 1px solid #e3ecfb;
+            padding: 10px 12px;
+            display: flex; justify-content: space-between; align-items: center;
+            gap: 10px;
+        }
+        .tag-name { font-weight: 700; color: #1d4b8f; font-size: 14px; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .tag-badges { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+        .mini-badge {
+            border-radius: 10px; padding: 1px 7px; font-size: 11px; font-weight: 700;
+            border: 1px solid transparent;
+        }
+        .mini-badge.total { background: #e7eefb; color: #27406f; border-color: #cfdaf0; }
+        .mini-badge.done { background: #e6f7ec; color: #0f6b36; border-color: #b8e3c9; }
+        .mini-badge.ongoing { background: #fff5e9; color: #995f12; border-color: #f0d2ab; }
+        .mini-badge.new { background: #e9f2ff; color: #1d57b7; border-color: #c9dbfd; }
+        .tag-item-list { max-height: 240px; overflow: auto; }
+        .tag-item {
+            border-bottom: 1px solid #f0f4fb;
+            padding: 8px 12px;
+            font-size: 12px;
+        }
+        .tag-item:last-child { border-bottom: none; }
+        .tag-item-title { line-height: 1.5; color: #2e3642; }
+        .tag-item-meta { margin-top: 3px; color: #6f7d93; font-size: 11px; display: flex; gap: 8px; flex-wrap: wrap; }
+        .state-pill {
+            border-radius: 9px; padding: 1px 7px; font-size: 10px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.3px;
+        }
+        .state-pill.done { background: #e6f7ec; color: #0f6b36; }
+        .state-pill.ongoing { background: #fff5e9; color: #995f12; }
+        .state-pill.new { background: #e9f2ff; color: #1d57b7; }
+
         /* === Preformatted text === */
         pre {
             white-space: pre-wrap; font-family: 'Consolas', 'Courier New', monospace;
@@ -384,8 +449,9 @@
 <!-- ===== Action Bar ===== -->
 <div class="action-bar">
     <button class="btn btn-primary" id="btnFetch" onclick="fetchData()">🔍 Refresh Data (P1/P2 Priority Sort)</button>
+    <button class="btn btn-secondary" id="btnLoadWiq" onclick="openWiqFilePicker()">📄 Load WIQ File</button>
     <button class="btn btn-secondary" id="btnReport" disabled onclick="openPersonReport()">👤 Member Report</button>
-    <button class="btn btn-secondary" id="btnDone" disabled onclick="openDoneSummary()">✅ Monthly Closed</button>
+    <button class="btn btn-secondary" id="btnDone" disabled onclick="openDoneSummary()">📊 Monthly Report</button>
     <button class="btn btn-secondary" id="btnWeekly" disabled onclick="openWeeklySummary()">🚀 Auto Weekly Report</button>
     <button class="btn btn-green" id="btnExport" disabled onclick="exportCSV()">📥 Export CSV</button>
     <button class="btn btn-secondary" id="btnFilter" onclick="toggleFilterBar()">🔎 Filter <span id="filterActiveBadge" style="display:none;" class="filter-active-badge">!</span></button>
@@ -396,6 +462,7 @@
         style="padding:7px 12px; border:1px solid #d0d8e8; border-radius:5px; font-size:13px; min-width:200px; outline:none; transition:border-color 0.2s;"
         onfocus="this.style.borderColor='#0078d4'" onblur="this.style.borderColor='#d0d8e8'">
     <button class="btn btn-secondary" id="btnDirectFetch" onclick="fetchByIds()">🎯 Search</button>
+    <input type="file" id="wiqFileInput" accept=".wiq,.wiql,.txt,.json" style="display:none;" onchange="handleWiqFile(event)">
 
     <div class="legend">
         <div class="legend-item"><div class="legend-dot" style="background:#c0392b;"></div> P1 Urgent</div>
@@ -548,11 +615,14 @@
 <div class="modal-overlay" id="modalDone">
     <div class="modal">
         <div class="modal-header">
-            <h3>✅ Monthly Closed Summary (Last 30 days)</h3>
-            <button class="modal-close" onclick="closeModal('modalDone')">✕</button>
+            <h3>📊 Monthly Report (By Current Main List)</h3>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <button class="btn btn-secondary" style="padding:5px 10px; font-size:12px;" onclick="exportMonthlyReportToOutlookMail()">✉️ Outlook Mail</button>
+                <button class="modal-close" onclick="closeModal('modalDone')">✕</button>
+            </div>
         </div>
         <div class="modal-body">
-            <pre id="doneSummaryContent"></pre>
+            <div id="doneSummaryContent" class="monthly-root"></div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="copyEl('doneSummaryContent')">📋 Copy</button>
@@ -620,6 +690,7 @@
 let dataStore = [];   // active work items
 let doneStore = [];   // done/closed work items
 let sortState = { all: null, stories: null, bugs: null };
+let monthlyReportCache = null;
 
 // ─── Config ─────────────────────────────────────────────
 function loadConfig() {
@@ -1006,42 +1077,34 @@ function renderOwnerReport(owner, items) {
 
 // ─── Done Summary ────────────────────────────────────────
 function openDoneSummary() {
-    const EXCLUDED_TAGS = new Set(['26PI1', '26PI2', '26PI3']);
+    const sourceItems = getVisibleItemsFromActiveTab();
+    const excludedTags = new Set(['HE_NUD', '25PI1','25PI2','25PI3','25PI4','26PI1', '26PI2', '26PI3', '26PI4']);
 
-    // State → sub-category mapping
+    if (sourceItems.length === 0) {
+        monthlyReportCache = null;
+        document.getElementById('doneSummaryContent').innerHTML = '<div class="empty-state">No visible items in the current main list.</div>';
+        showModal('modalDone');
+        return;
+    }
+
     function classify(state) {
-        const s = state.toLowerCase();
+        const s = String(state || '').toLowerCase();
         if (['done', 'closed', 'resolved'].some(k => s.includes(k))) return 'Done';
-        if (['new', 'proposed', 'to do'].some(k => s.includes(k)))   return 'New';
+        if (['new', 'proposed', 'to do'].some(k => s.includes(k))) return 'New';
         return 'Ongoing';
     }
 
-    // Merge active + done items; deduplicate by id (done takes priority); stories & bugs only
-    const seen = new Set();
-    const allItems = [];
-    for (const item of [...doneStore, ...dataStore]) {
-        if (seen.has(item.id)) continue;
-        const t = item.type.toLowerCase();
-        if (!t.includes('story') && !t.includes('bug')) continue;
-        seen.add(item.id);
-        allItems.push(item);
-    }
-
-    // Group by tag → { Done:[], Ongoing:[], New:[] }
     const tagMap = {};
-    for (const item of allItems) {
+    for (const item of sourceItems) {
         const itemTags = item.tags?.length ? item.tags : ['(Untagged)'];
-        for (const tag of itemTags) {
-            if (EXCLUDED_TAGS.has(tag)) continue;
+        for (const rawTag of itemTags) {
+            const tag = String(rawTag || '').trim() || '(Untagged)';
+            const normalizedTag = tag.toUpperCase();
+            if (excludedTags.has(normalizedTag)) continue;
             if (!tagMap[tag]) tagMap[tag] = { Done: [], Ongoing: [], New: [] };
             tagMap[tag][classify(item.state)].push(item);
         }
     }
-
-    const today = new Date().toISOString().slice(0, 10);
-    const totalDone = allItems.filter(i => classify(i.state) === 'Done').length;
-    let text = `🏆 Monthly Tag Report — ${today}\n` + '═'.repeat(56) + '\n';
-    text += `Active: ${dataStore.length} items / Recently closed: ${doneStore.length} items\n`;
 
     const tags = Object.keys(tagMap).sort((a, b) => {
         if (a === '(Untagged)') return 1;
@@ -1049,33 +1112,220 @@ function openDoneSummary() {
         return a.localeCompare(b);
     });
 
-    if (tags.length === 0) {
-        text += '\n(No data)\n';
-    } else {
-        for (const tag of tags) {
-            const g = tagMap[tag];
-            const total = g.Done.length + g.Ongoing.length + g.New.length;
-            text += `\n🏷️  ${tag}  (${total} items)\n`;
-            text += '─'.repeat(46) + '\n';
+    const doneCount = sourceItems.filter(i => classify(i.state) === 'Done').length;
+    const ongoingCount = sourceItems.filter(i => classify(i.state) === 'Ongoing').length;
+    const newCount = sourceItems.filter(i => classify(i.state) === 'New').length;
+    const today = new Date().toISOString().slice(0, 10);
+    const org = document.getElementById('orgInput').value.trim();
+    const project = document.getElementById('projectInput').value.trim();
 
-            const sections = [
-                { label: 'Done',    emoji: '✅', items: g.Done    },
-                { label: 'Ongoing', emoji: '🔄', items: g.Ongoing },
-                { label: 'New',     emoji: '🆕', items: g.New     },
-            ];
-            for (const { label, emoji, items } of sections) {
-                if (items.length === 0) continue;
-                text += `  ${emoji} ${label} (${items.length})\n`;
-                for (const item of items) {
-                    text += `    • #${item.id} [${item.type}] ${item.title}\n`;
-                    text += `      → ${item.owner} | ${item.state} | ${item.date}\n`;
-                }
-            }
-        }
+    monthlyReportCache = {
+        today,
+        sourceItems,
+        tags,
+        tagMap,
+        doneCount,
+        ongoingCount,
+        newCount
+    };
+
+    let html = `
+        <div class="monthly-meta">
+            <div><strong>Monthly Report</strong> · ${today}</div>
+            <div>Source: Current main list (visible rows)</div>
+        </div>
+        <div class="monthly-summary">
+            <div class="monthly-stat"><div class="k">Total Items</div><div class="v">${sourceItems.length}</div></div>
+            <div class="monthly-stat"><div class="k">Tags</div><div class="v">${tags.length}</div></div>
+            <div class="monthly-stat"><div class="k">Done</div><div class="v">${doneCount}</div></div>
+            <div class="monthly-stat"><div class="k">Ongoing</div><div class="v">${ongoingCount}</div></div>
+            <div class="monthly-stat"><div class="k">New</div><div class="v">${newCount}</div></div>
+        </div>
+    `;
+
+    if (tags.length === 0) {
+        html += '<div class="empty-state">No reportable tags after exclusion rules.</div>';
+        document.getElementById('doneSummaryContent').innerHTML = html;
+        showModal('modalDone');
+        return;
     }
 
-    document.getElementById('doneSummaryContent').textContent = text;
+    html += '<div class="tag-grid">';
+    for (const tag of tags) {
+        const g = tagMap[tag];
+        const total = g.Done.length + g.Ongoing.length + g.New.length;
+        const allItems = [...g.Done, ...g.Ongoing, ...g.New]
+            .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
+        html += `
+            <section class="tag-card">
+                <div class="tag-card-header">
+                    <div class="tag-name" title="${esc(tag)}">${esc(tag)}</div>
+                    <div class="tag-badges">
+                        <span class="mini-badge total">Total ${total}</span>
+                        <span class="mini-badge done">Done ${g.Done.length}</span>
+                        <span class="mini-badge ongoing">Ongoing ${g.Ongoing.length}</span>
+                        <span class="mini-badge new">New ${g.New.length}</span>
+                    </div>
+                </div>
+                <div class="tag-item-list">
+        `;
+
+        for (const item of allItems) {
+            const bucket = classify(item.state).toLowerCase();
+            const wiUrl = project
+                ? `https://dev.azure.com/${org}/${encodeURIComponent(project)}/_workitems/edit/${item.id}`
+                : `https://dev.azure.com/${org}/_workitems/edit/${item.id}`;
+            html += `
+                <div class="tag-item">
+                    <div class="tag-item-title">
+                        <a class="id-link" href="${wiUrl}" target="_blank" rel="noopener">#${esc(item.id)}</a>
+                        [P${esc(item.pri)}] ${esc(item.title)}
+                    </div>
+                    <div class="tag-item-meta">
+                        <span class="state-pill ${bucket}">${esc(classify(item.state))}</span>
+                        <span>${esc(item.type)}</span>
+                        <span>${esc(item.owner)}</span>
+                        <span>${esc(item.date || '-')}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        html += '</div></section>';
+    }
+    html += '</div>';
+
+    document.getElementById('doneSummaryContent').innerHTML = html;
     showModal('modalDone');
+}
+
+function classifyMonthlyState(state) {
+    const s = String(state || '').toLowerCase();
+    if (['done', 'closed', 'resolved'].some(k => s.includes(k))) return 'Done';
+    if (['new', 'proposed', 'to do'].some(k => s.includes(k))) return 'New';
+    return 'Ongoing';
+}
+
+async function exportMonthlyReportToOutlookMail() {
+    if (!monthlyReportCache || !monthlyReportCache.sourceItems?.length) {
+        showToast('Please open Monthly Report first', 'warn');
+        return;
+    }
+
+    const html = buildMonthlyOutlookHtml(monthlyReportCache);
+    const text = buildMonthlyOutlookText(monthlyReportCache);
+
+    try {
+        if (navigator.clipboard && window.ClipboardItem) {
+            const clipItem = new ClipboardItem({
+                'text/html': new Blob([html], { type: 'text/html' }),
+                'text/plain': new Blob([text], { type: 'text/plain' })
+            });
+            await navigator.clipboard.write([clipItem]);
+        } else if (navigator.clipboard) {
+            await navigator.clipboard.writeText(text);
+        } else {
+            throw new Error('Clipboard API unavailable');
+        }
+
+        showToast('✅ Outlook mail content copied. Paste directly into Outlook email body.', 'success');
+    } catch (err) {
+        console.error(err);
+        showToast('❌ Failed to copy Outlook mail content', 'error');
+    }
+}
+
+function buildMonthlyOutlookHtml(cache) {
+    const { today, sourceItems, tags, tagMap, doneCount, ongoingCount, newCount } = cache;
+    let html = '';
+    html += '<div style="font-family:Segoe UI,Arial,sans-serif;color:#1f2937;line-height:1.45;">';
+    html += `<h2 style="margin:0 0 8px;color:#0f4c81;">Monthly Report - ${esc(today)}</h2>`;
+    html += '<p style="margin:0 0 12px;color:#4b5563;font-size:13px;">Source: Current main list (visible rows)</p>';
+    html += '<table style="border-collapse:collapse;margin:0 0 14px;font-size:13px;">';
+    html += '<tr>';
+    html += `<td style="border:1px solid #dbe2ee;padding:6px 10px;background:#f8fbff;"><b>Total</b><br>${sourceItems.length}</td>`;
+    html += `<td style="border:1px solid #dbe2ee;padding:6px 10px;background:#f8fbff;"><b>Tags</b><br>${tags.length}</td>`;
+    html += `<td style="border:1px solid #dbe2ee;padding:6px 10px;background:#f8fbff;"><b>Done</b><br>${doneCount}</td>`;
+    html += `<td style="border:1px solid #dbe2ee;padding:6px 10px;background:#f8fbff;"><b>Ongoing</b><br>${ongoingCount}</td>`;
+    html += `<td style="border:1px solid #dbe2ee;padding:6px 10px;background:#f8fbff;"><b>New</b><br>${newCount}</td>`;
+    html += '</tr>';
+    html += '</table>';
+
+    for (const tag of tags) {
+        const g = tagMap[tag];
+        const allItems = [...g.Done, ...g.Ongoing, ...g.New].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+        const total = g.Done.length + g.Ongoing.length + g.New.length;
+
+        html += `<h3 style="margin:14px 0 6px;color:#1d4b8f;">${esc(tag)} <span style="font-size:12px;color:#6b7280;">(${total})</span></h3>`;
+        html += '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px;">';
+        html += '<tr style="background:#f3f7ff;">';
+        html += '<th style="border:1px solid #dbe2ee;padding:6px;text-align:left;">ID</th>';
+        html += '<th style="border:1px solid #dbe2ee;padding:6px;text-align:left;">Pri</th>';
+        html += '<th style="border:1px solid #dbe2ee;padding:6px;text-align:left;">State</th>';
+        html += '<th style="border:1px solid #dbe2ee;padding:6px;text-align:left;">Type</th>';
+        html += '<th style="border:1px solid #dbe2ee;padding:6px;text-align:left;">Title</th>';
+        html += '<th style="border:1px solid #dbe2ee;padding:6px;text-align:left;">Owner</th>';
+        html += '<th style="border:1px solid #dbe2ee;padding:6px;text-align:left;">Date</th>';
+        html += '</tr>';
+
+        for (const item of allItems) {
+            html += '<tr>';
+            html += `<td style="border:1px solid #e4e9f2;padding:6px;">#${esc(item.id)}</td>`;
+            html += `<td style="border:1px solid #e4e9f2;padding:6px;">P${esc(item.pri)}</td>`;
+            html += `<td style="border:1px solid #e4e9f2;padding:6px;">${esc(classifyMonthlyState(item.state))}</td>`;
+            html += `<td style="border:1px solid #e4e9f2;padding:6px;">${esc(item.type)}</td>`;
+            html += `<td style="border:1px solid #e4e9f2;padding:6px;">${esc(item.title)}</td>`;
+            html += `<td style="border:1px solid #e4e9f2;padding:6px;">${esc(item.owner)}</td>`;
+            html += `<td style="border:1px solid #e4e9f2;padding:6px;white-space:nowrap;">${esc(item.date || '-')}</td>`;
+            html += '</tr>';
+        }
+        html += '</table>';
+    }
+
+    html += '</div>';
+    return html;
+}
+
+function buildMonthlyOutlookText(cache) {
+    const { today, sourceItems, tags, tagMap, doneCount, ongoingCount, newCount } = cache;
+    let out = `Monthly Report - ${today}\n`;
+    out += '========================================\n';
+    out += 'Source: Current main list (visible rows)\n';
+    out += `Total: ${sourceItems.length} | Tags: ${tags.length} | Done: ${doneCount} | Ongoing: ${ongoingCount} | New: ${newCount}\n`;
+
+    for (const tag of tags) {
+        const g = tagMap[tag];
+        const allItems = [...g.Done, ...g.Ongoing, ...g.New].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+        const total = g.Done.length + g.Ongoing.length + g.New.length;
+        out += `\n[${tag}] (${total})\n`;
+        out += '----------------------------------------\n';
+        for (const item of allItems) {
+            out += `#${item.id} P${item.pri} ${classifyMonthlyState(item.state)} | ${item.type} | ${item.owner} | ${item.date || '-'}\n`;
+            out += `${item.title}\n`;
+        }
+    }
+    return out;
+}
+
+function getVisibleItemsFromActiveTab() {
+    const activeBtn = document.querySelector('.tab-btn.active');
+    const tabId = activeBtn?.id || 'tab-btn-all';
+    const tabName = tabId.replace('tab-btn-', '');
+    const tbody = document.getElementById('tbody-' + tabName);
+    if (!tbody) return [];
+
+    const visibleIds = [];
+    Array.from(tbody.rows).forEach(tr => {
+        if (tr.cells.length <= 1) return;
+        if (tr.style.display === 'none') return;
+        const idText = tr.cells[0]?.textContent || '';
+        const m = idText.match(/\d+/);
+        if (m?.[0]) visibleIds.push(m[0]);
+    });
+
+    const idSet = new Set(visibleIds);
+    return dataStore.filter(item => idSet.has(String(item.id)));
 }
 
 // ─── Weekly Summary ──────────────────────────────────────
@@ -1296,28 +1546,7 @@ async function fetchByIds() {
 
         const org     = document.getElementById('orgInput').value.trim();
         const project = document.getElementById('projectInput').value.trim();
-        let html = '';
-
-        for (const item of (data.value || [])) {
-            const f      = item.fields;
-            const pri    = f['Microsoft.VSTS.Common.Priority'] ?? 4;
-            const url    = `https://dev.azure.com/${org}/${encodeURIComponent(project)}/_workitems/edit/${item.id}`;
-            const priCls = `pri-${Math.min(pri, 4)}`;
-            const date   = (f['System.ChangedDate'] || '').slice(0, 16).replace('T', ' ');
-            html += `<tr>
-                <td><a class="id-link" href="${url}" target="_blank" rel="noopener">${esc(item.id)}</a></td>
-                <td><span class="pri-badge ${priCls}">P${pri}</span></td>
-                <td>${esc(f['System.WorkItemType'] || '')}</td>
-                <td class="title-cell" title="${esc(f['System.Title'] || '')}">${esc(f['System.Title'] || '')}</td>
-                <td><span class="state-badge">${esc(f['System.State'] || '')}</span></td>
-                <td>${esc(f['System.AssignedTo']?.displayName || 'Unassigned')}</td>
-                <td style="white-space:nowrap;font-size:12px;color:#666;">${date}</td>
-                <td style="font-size:11px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:210px;" title="${esc(f['System.AreaPath'] || '')}">${esc(f['System.AreaPath'] || '')}</td>
-            </tr>`;
-        }
-
-        document.getElementById('directResultBody').innerHTML =
-            html || '<tr><td colspan="8" class="empty-state">No items found for the specified IDs</td></tr>';
+        document.getElementById('directResultBody').innerHTML = buildDirectResultRows(data.value || [], org, project);
         showModal('modalDirectResult');
 
     } catch (err) {
@@ -1326,6 +1555,225 @@ async function fetchByIds() {
         btn.disabled = false;
         btn.innerHTML = '🎯 Search';
     }
+}
+
+// ─── WIQ File Loader ───────────────────────────────────
+function openWiqFilePicker() {
+    document.getElementById('wiqFileInput').value = '';
+    document.getElementById('wiqFileInput').click();
+}
+
+async function handleWiqFile(event) {
+    const file = event?.target?.files?.[0];
+    if (!file) return;
+
+    const cfg = getConfig();
+    if (!cfg.token) { showToast('Please enter a PAT Token first', 'error'); return; }
+    if (!cfg.org) { showToast('Please fill in Organization first', 'error'); return; }
+
+    const btn = document.getElementById('btnLoadWiq');
+    btn.disabled = true;
+    btn.textContent = '⏳ Loading...';
+
+    try {
+        const text = await file.text();
+        const parsed = parseWiqContent(text);
+
+        if (!parsed.ids.length && !parsed.query) {
+            throw new Error('No WIQL query or IDs were found in this file');
+        }
+
+        if (parsed.ids.length > 0) {
+            const allIds = [...new Set(parsed.ids)].slice(0, 500);
+            const headers = buildHeaders(cfg.token);
+            const items = await fetchWorkItemsByIds(cfg.org, headers, allIds);
+            applyLoadedItemsToMainList(items);
+            showToast(`Loaded ${items.length} items into main list from ${file.name}`, 'success');
+            return;
+        }
+
+        if (!cfg.project) {
+            throw new Error('Project is required when loading WIQL query files');
+        }
+
+        const headers = buildHeaders(cfg.token);
+        const ids = await fetchIdsByWiql(cfg.org, cfg.project, headers, parsed.query);
+        if (ids.length === 0) {
+            document.getElementById('directResultBody').innerHTML = '<tr><td colspan="8" class="empty-state">WIQL returned no work items</td></tr>';
+            showModal('modalDirectResult');
+            showToast('WIQL returned 0 items', 'warn');
+            return;
+        }
+
+        const items = await fetchWorkItemsByIds(cfg.org, headers, ids);
+        applyLoadedItemsToMainList(items);
+        showToast(`Loaded ${items.length} items into main list from WIQL`, 'success');
+    } catch (err) {
+        showToast('❌ ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '📄 Load WIQ File';
+    }
+}
+
+function applyLoadedItemsToMainList(items) {
+    dataStore = mapApiItemsToDashboardItems(items || []);
+    doneStore = [];
+
+    renderAllTables();
+    populateFilterDropdowns();
+    clearFilters();
+    updateStatusBar();
+    enableButtons();
+
+    const tabBtn = document.getElementById('tab-btn-all');
+    if (tabBtn) switchTab('all', tabBtn);
+}
+
+function mapApiItemsToDashboardItems(items) {
+    const now = new Date();
+    return (items || []).map(item => {
+        const f = item.fields || {};
+        const changedRaw = f['System.ChangedDate'] || '';
+        const daysStale = changedRaw
+            ? (now - new Date(changedRaw.slice(0, 10))) / 86_400_000
+            : 999;
+
+        const rawTags = f['System.Tags'] || '';
+        const tags = rawTags
+            ? rawTags.split(';').map(t => t.trim()).filter(Boolean)
+            : [];
+
+        return {
+            id: item.id,
+            pri: f['Microsoft.VSTS.Common.Priority'] ?? 4,
+            type: f['System.WorkItemType'] || 'N/A',
+            title: f['System.Title'] || '',
+            state: f['System.State'] || '',
+            owner: f['System.AssignedTo']?.displayName || 'Unassigned',
+            tags,
+            date: changedRaw.slice(0, 16).replace('T', ' '),
+            stale: daysStale > 14
+        };
+    });
+}
+
+function parseWiqContent(raw) {
+    const text = String(raw || '').trim();
+    if (!text) return { ids: [], query: '' };
+
+    try {
+        const json = JSON.parse(text);
+        const jsonIds = extractIdsFromObject(json);
+        if (jsonIds.length > 0) return { ids: jsonIds, query: '' };
+    } catch (_) {}
+
+    const xmlWiqlMatch = text.match(/<wiql[^>]*>([\s\S]*?)<\/wiql>/i);
+    if (xmlWiqlMatch?.[1]) {
+        const decoded = decodeXml(xmlWiqlMatch[1]).trim();
+        if (/\bselect\b[\s\S]*\bfrom\b[\s\S]*\bworkitems\b/i.test(decoded)) {
+            return { ids: [], query: decoded };
+        }
+    }
+
+    const selectPos = text.toLowerCase().indexOf('select');
+    if (selectPos >= 0) {
+        const possibleQuery = text.slice(selectPos).trim();
+        if (/\bselect\b[\s\S]*\bfrom\b[\s\S]*\bworkitems\b/i.test(possibleQuery)) {
+            return { ids: [], query: possibleQuery };
+        }
+    }
+
+    const idMatches = text.match(/\b\d{3,}\b/g) || [];
+    const ids = [...new Set(idMatches.map(v => v.trim()).filter(Boolean))];
+    return { ids, query: '' };
+}
+
+function extractIdsFromObject(obj) {
+    if (!obj) return [];
+    if (Array.isArray(obj)) {
+        return obj.flatMap(v => extractIdsFromObject(v));
+    }
+    if (typeof obj === 'number' || typeof obj === 'string') {
+        const m = String(obj).match(/^\d+$/);
+        return m ? [String(obj)] : [];
+    }
+    if (typeof obj !== 'object') return [];
+
+    const out = [];
+    for (const [key, value] of Object.entries(obj)) {
+        if (/^(id|ids)$/i.test(key)) {
+            out.push(...extractIdsFromObject(value));
+            continue;
+        }
+        if (/workitems?/i.test(key) && Array.isArray(value)) {
+            out.push(...value.flatMap(v => extractIdsFromObject(v)));
+            continue;
+        }
+        out.push(...extractIdsFromObject(value));
+    }
+    return [...new Set(out)];
+}
+
+function decodeXml(s) {
+    return String(s)
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'");
+}
+
+async function fetchIdsByWiql(org, project, headers, query) {
+    const encodedProject = encodeURIComponent(project);
+    const base = `https://dev.azure.com/${org}`;
+    const res = await apiPost(
+        `${base}/${encodedProject}/_apis/wit/wiql?api-version=7.1`,
+        headers,
+        { query }
+    );
+    return (res.workItems || []).map(w => String(w.id)).filter(Boolean).slice(0, 800);
+}
+
+async function fetchWorkItemsByIds(org, headers, ids) {
+    const base = `https://dev.azure.com/${org}`;
+    const out = [];
+    for (let i = 0; i < ids.length; i += 100) {
+        const batch = ids.slice(i, i + 100);
+        const data = await apiGet(
+            `${base}/_apis/wit/workitems?ids=${batch.join(',')}&$expand=none&api-version=7.1`,
+            headers
+        );
+        out.push(...(data.value || []));
+    }
+    return out;
+}
+
+function buildDirectResultRows(items, org, project) {
+    let html = '';
+
+    for (const item of items) {
+        const f      = item.fields || {};
+        const pri    = f['Microsoft.VSTS.Common.Priority'] ?? 4;
+        const priCls = `pri-${Math.min(pri, 4)}`;
+        const date   = (f['System.ChangedDate'] || '').slice(0, 16).replace('T', ' ');
+        const url = project
+            ? `https://dev.azure.com/${org}/${encodeURIComponent(project)}/_workitems/edit/${item.id}`
+            : `https://dev.azure.com/${org}/_workitems/edit/${item.id}`;
+
+        html += `<tr>
+            <td><a class="id-link" href="${url}" target="_blank" rel="noopener">${esc(item.id)}</a></td>
+            <td><span class="pri-badge ${priCls}">P${pri}</span></td>
+            <td>${esc(f['System.WorkItemType'] || '')}</td>
+            <td class="title-cell" title="${esc(f['System.Title'] || '')}">${esc(f['System.Title'] || '')}</td>
+            <td><span class="state-badge">${esc(f['System.State'] || '')}</span></td>
+            <td>${esc(f['System.AssignedTo']?.displayName || 'Unassigned')}</td>
+            <td style="white-space:nowrap;font-size:12px;color:#666;">${date}</td>
+            <td style="font-size:11px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:210px;" title="${esc(f['System.AreaPath'] || '')}">${esc(f['System.AreaPath'] || '')}</td>
+        </tr>`;
+    }
+
+    return html || '<tr><td colspan="8" class="empty-state">No items found for the specified input</td></tr>';
 }
 
 // ─── Utility ─────────────────────────────────────────────
