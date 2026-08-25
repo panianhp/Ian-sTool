@@ -6,11 +6,75 @@
     <title>HP BIOS - HE Solution Team PM Dashboard</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f3f6fb; color: #333; min-width: 900px; }
+        :root {
+            --bg: #f3f6fb;
+            --text: #333;
+            --panel-bg: #ffffff;
+            --panel-border: #e0e8f5;
+            --muted: #666;
+            --header-grad-a: #0078d4;
+            --header-grad-b: #005a9e;
+            --accent: #0078d4;
+            --accent-strong: #005a9e;
+            --table-head-bg: #f0f4ff;
+            --table-head-border: #d0d8f0;
+            --table-row-border: #f0f4f8;
+            --input-bg: #fafbff;
+            --input-border: #d0d8e8;
+            --tab-nav-bg: #f8faff;
+            --tab-inactive-text: #666;
+            --modal-overlay: rgba(0,0,0,0.45);
+            --scroll-track: #f0f0f0;
+            --scroll-thumb: #c8cfe8;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-width: 320px;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        body.theme-dark {
+            --bg: #0f172a;
+            --text: #dce4f2;
+            --panel-bg: #111827;
+            --panel-border: #263247;
+            --muted: #9ba7bc;
+            --header-grad-a: #1e293b;
+            --header-grad-b: #0f172a;
+            --accent: #38bdf8;
+            --accent-strong: #0ea5e9;
+            --table-head-bg: #1a253a;
+            --table-head-border: #2b3c59;
+            --table-row-border: #1e293b;
+            --input-bg: #0b1220;
+            --input-border: #334155;
+            --tab-nav-bg: #0f1a2d;
+            --tab-inactive-text: #b6c2d6;
+            --modal-overlay: rgba(2, 6, 23, 0.75);
+            --scroll-track: #111827;
+            --scroll-thumb: #334155;
+        }
+
+        body.large-text {
+            font-size: 17px;
+        }
+
+        body.large-text .btn,
+        body.large-text table,
+        body.large-text .form-group input,
+        body.large-text .tab-btn,
+        body.large-text .stat-item,
+        body.large-text .legend,
+        body.large-text .filter-select {
+            font-size: 15px;
+        }
 
         /* === Header === */
         .header {
-            background: linear-gradient(135deg, #0078d4 0%, #005a9e 100%);
+            background: linear-gradient(135deg, var(--header-grad-a) 0%, var(--header-grad-b) 100%);
             color: white; padding: 14px 24px;
             display: flex; align-items: center; justify-content: space-between;
             box-shadow: 0 2px 8px rgba(0,0,0,0.25);
@@ -18,35 +82,83 @@
         .header h1 { font-size: 17px; font-weight: 600; letter-spacing: 0.2px; }
         .header .subtitle { font-size: 11px; opacity: 0.75; margin-top: 2px; }
         .header-logo { font-size: 28px; margin-right: 12px; }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .display-menu-wrap {
+            position: relative;
+        }
+        .display-trigger {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            border-radius: 999px;
+            justify-content: center;
+            font-size: 17px;
+            line-height: 1;
+        }
+        .display-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 200px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            box-shadow: 0 12px 24px rgba(0,0,0,0.2);
+            padding: 8px;
+            display: none;
+            z-index: 1200;
+        }
+        .display-menu.active { display: block; }
+        .display-menu-title {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            margin: 2px 6px 6px;
+        }
+        .display-menu-item + .display-menu-item {
+            margin-top: 6px;
+        }
+        .display-menu .btn {
+            width: 100%;
+            justify-content: flex-start;
+            padding: 7px 10px;
+            font-size: 12px;
+        }
 
         /* === Config Panel === */
         .config-panel {
-            background: white; margin: 14px 16px 0;
+            background: var(--panel-bg); margin: 14px 16px 0;
             border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-            border: 1px solid #e0e8f5;
+            border: 1px solid var(--panel-border);
         }
         .config-header {
             padding: 10px 16px; cursor: pointer;
             display: flex; justify-content: space-between; align-items: center;
-            font-weight: 600; color: #005a9e; font-size: 13px;
+            font-weight: 600; color: var(--accent-strong); font-size: 13px;
             user-select: none;
         }
-        .config-header:hover { background: #f5f8ff; border-radius: 8px; }
+        .config-header:hover { background: color-mix(in srgb, var(--panel-bg) 82%, var(--accent) 18%); border-radius: 8px; }
         .config-body {
             padding: 14px 16px 16px;
             display: grid; grid-template-columns: 1fr 1fr 2fr 1fr 1fr auto;
             gap: 10px; align-items: end;
-            border-top: 1px solid #e8eef8;
+            border-top: 1px solid var(--panel-border);
         }
         .config-body.hidden { display: none; }
-        .form-group label { display: block; font-size: 11px; color: #666; margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+        .form-group label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
         .form-group input {
             width: 100%; padding: 7px 10px;
-            border: 1px solid #d0d8e8; border-radius: 5px;
+            border: 1px solid var(--input-border); border-radius: 5px;
             font-size: 13px; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
-            background: #fafbff;
+            background: var(--input-bg);
+            color: var(--text);
         }
-        .form-group input:focus { border-color: #0078d4; box-shadow: 0 0 0 2px rgba(0,120,212,0.15); }
+        .form-group input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,120,212,0.15); }
 
         /* === Action Bar === */
         .action-bar {
@@ -60,10 +172,10 @@
             gap: 5px; white-space: nowrap;
         }
         .btn:focus { outline: 2px solid #0078d4; outline-offset: 2px; }
-        .btn-primary { background: #0078d4; color: white; }
-        .btn-primary:hover:not(:disabled) { background: #005a9e; }
-        .btn-secondary { background: #f0f2f8; color: #333; border: 1px solid #d0d8e8; }
-        .btn-secondary:hover:not(:disabled) { background: #e0e8f5; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover:not(:disabled) { background: var(--accent-strong); }
+        .btn-secondary { background: color-mix(in srgb, var(--panel-bg) 86%, #9fb3d9 14%); color: var(--text); border: 1px solid var(--input-border); }
+        .btn-secondary:hover:not(:disabled) { background: color-mix(in srgb, var(--panel-bg) 72%, #9fb3d9 28%); }
         .btn-green { background: #107c10; color: white; }
         .btn-green:hover:not(:disabled) { background: #0b5c0b; }
         .btn:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -72,23 +184,23 @@
             display: flex; gap: 14px; margin-left: auto;
             font-size: 12px; align-items: center; flex-wrap: wrap;
         }
-        .legend-item { display: flex; align-items: center; gap: 5px; color: #555; }
+        .legend-item { display: flex; align-items: center; gap: 5px; color: var(--muted); }
         .legend-dot { width: 11px; height: 11px; border-radius: 2px; }
 
         /* === Status Bar === */
         .status-bar {
             display: flex; gap: 0; margin: 0 16px 12px;
-            background: white; border-radius: 7px;
-            border: 1px solid #d8e4f8; overflow: hidden;
+            background: var(--panel-bg); border-radius: 7px;
+            border: 1px solid var(--panel-border); overflow: hidden;
             box-shadow: 0 1px 3px rgba(0,0,0,0.06);
         }
         .stat-item {
             flex: 1; padding: 9px 14px; font-size: 12px;
-            border-right: 1px solid #e8eef8; text-align: center;
+            border-right: 1px solid var(--panel-border); text-align: center;
         }
         .stat-item:last-child { border-right: none; }
         .stat-item .val { font-size: 18px; font-weight: 700; display: block; }
-        .stat-item .lbl { color: #777; font-size: 11px; }
+        .stat-item .lbl { color: var(--muted); font-size: 11px; }
         .val-p1 { color: #c0392b; }
         .val-p2 { color: #e67e22; }
         .val-stale { color: #e74c3c; }
@@ -98,25 +210,25 @@
         /* === Tabs === */
         .tab-container {
             margin: 0 16px 16px;
-            background: white; border-radius: 8px;
+            background: var(--panel-bg); border-radius: 8px;
             box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-            border: 1px solid #e0e8f5; overflow: hidden;
+            border: 1px solid var(--panel-border); overflow: hidden;
         }
-        .tab-nav { display: flex; border-bottom: 2px solid #e8eef8; background: #f8faff; }
+        .tab-nav { display: flex; border-bottom: 2px solid var(--panel-border); background: var(--tab-nav-bg); }
         .tab-btn {
             padding: 10px 22px; cursor: pointer; border: none;
             background: none; font-size: 13px; font-weight: 500;
-            color: #666; border-bottom: 3px solid transparent;
+            color: var(--tab-inactive-text); border-bottom: 3px solid transparent;
             margin-bottom: -2px; transition: all 0.15s;
         }
-        .tab-btn.active { color: #0078d4; border-bottom-color: #0078d4; background: white; }
-        .tab-btn:hover:not(.active) { color: #333; background: #eef2fa; }
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--panel-bg); }
+        .tab-btn:hover:not(.active) { color: var(--text); background: color-mix(in srgb, var(--panel-bg) 74%, #8ea7d9 26%); }
         .tab-count {
-            display: inline-block; background: #e0e8f5; color: #555;
+            display: inline-block; background: color-mix(in srgb, var(--panel-bg) 70%, #8ea7d9 30%); color: var(--muted);
             border-radius: 10px; padding: 0 7px; font-size: 11px;
             margin-left: 5px; font-weight: 600;
         }
-        .tab-btn.active .tab-count { background: #0078d4; color: white; }
+        .tab-btn.active .tab-count { background: var(--accent); color: white; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
@@ -125,15 +237,15 @@
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         thead th {
             position: sticky; top: 0; z-index: 2;
-            background: #f0f4ff; padding: 10px 12px;
-            text-align: left; font-weight: 600; color: #444;
-            border-bottom: 2px solid #d0d8f0; white-space: nowrap;
+            background: var(--table-head-bg); padding: 10px 12px;
+            text-align: left; font-weight: 600; color: var(--text);
+            border-bottom: 2px solid var(--table-head-border); white-space: nowrap;
             cursor: pointer; user-select: none;
         }
-        thead th:hover { background: #e4ecff; }
-        thead th.sorted-asc::after { content: ' ↑'; color: #0078d4; }
-        thead th.sorted-desc::after { content: ' ↓'; color: #0078d4; }
-        tbody tr { border-bottom: 1px solid #f0f4f8; transition: filter 0.1s; cursor: default; }
+        thead th:hover { background: color-mix(in srgb, var(--table-head-bg) 70%, #6f95dc 30%); }
+        thead th.sorted-asc::after { content: ' ↑'; color: var(--accent); }
+        thead th.sorted-desc::after { content: ' ↓'; color: var(--accent); }
+        tbody tr { border-bottom: 1px solid var(--table-row-border); transition: filter 0.1s; cursor: default; }
         tbody tr:hover td { filter: brightness(0.95); }
         tbody td { padding: 8px 12px; vertical-align: middle; }
         tbody td.title-cell {
@@ -162,13 +274,13 @@
             padding: 1px 4px; border-radius: 3px;
         }
         .id-link {
-            color: #0078d4; text-decoration: none;
+            color: var(--accent); text-decoration: none;
             font-weight: 600; font-size: 13px;
         }
         .id-link:hover { text-decoration: underline; }
         .state-badge {
             display: inline-block; padding: 2px 8px; border-radius: 10px;
-            font-size: 11px; background: #e8f0fe; color: #1a56c4;
+            font-size: 11px; background: color-mix(in srgb, var(--panel-bg) 60%, #97b8f5 40%); color: color-mix(in srgb, var(--accent) 75%, #0a3e8c 25%);
         }
 
         /* === Loading === */
@@ -189,12 +301,12 @@
         /* === Modal === */
         .modal-overlay {
             display: none; position: fixed; inset: 0;
-            background: rgba(0,0,0,0.45); z-index: 1000;
+            background: var(--modal-overlay); z-index: 1000;
             align-items: center; justify-content: center;
         }
         .modal-overlay.active { display: flex; }
         .modal {
-            background: white; border-radius: 10px;
+            background: var(--panel-bg); border-radius: 10px;
             width: 90%; max-width: 820px; max-height: 85vh;
             display: flex; flex-direction: column;
             box-shadow: 0 12px 48px rgba(0,0,0,0.3);
@@ -205,7 +317,7 @@
             padding: 15px 20px; border-bottom: 1px solid #e8eef8;
             display: flex; justify-content: space-between; align-items: center;
         }
-        .modal-header h3 { font-size: 15px; font-weight: 600; color: #005a9e; }
+        .modal-header h3 { font-size: 15px; font-weight: 600; color: var(--accent-strong); }
         .modal-close {
             cursor: pointer; font-size: 18px; color: #999;
             background: none; border: none; width: 28px; height: 28px;
@@ -244,16 +356,16 @@
             gap: 10px;
         }
         .monthly-stat {
-            background: #f7faff;
-            border: 1px solid #dbe8fb;
+            background: color-mix(in srgb, var(--panel-bg) 82%, #8eb6ff 18%);
+            border: 1px solid color-mix(in srgb, var(--panel-border) 78%, #8eb6ff 22%);
             border-radius: 8px;
             padding: 10px 12px;
         }
-        .monthly-stat .k { font-size: 11px; color: #5f6e86; text-transform: uppercase; letter-spacing: 0.4px; }
-        .monthly-stat .v { font-size: 22px; font-weight: 700; color: #1f3a66; margin-top: 3px; }
+        .monthly-stat .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+        .monthly-stat .v { font-size: 22px; font-weight: 700; color: var(--text); margin-top: 3px; }
         .monthly-meta {
             display: flex; justify-content: space-between; align-items: center;
-            font-size: 12px; color: #667;
+            font-size: 12px; color: var(--muted);
             padding: 0 2px;
         }
         .tag-grid {
@@ -262,9 +374,9 @@
             gap: 10px;
         }
         .tag-card {
-            border: 1px solid #dfe7f5;
+            border: 1px solid var(--panel-border);
             border-radius: 8px;
-            background: #fff;
+            background: var(--panel-bg);
             overflow: hidden;
         }
         .tag-card-header {
@@ -291,8 +403,8 @@
             font-size: 12px;
         }
         .tag-item:last-child { border-bottom: none; }
-        .tag-item-title { line-height: 1.5; color: #2e3642; }
-        .tag-item-meta { margin-top: 3px; color: #6f7d93; font-size: 11px; display: flex; gap: 8px; flex-wrap: wrap; }
+        .tag-item-title { line-height: 1.5; color: var(--text); }
+        .tag-item-meta { margin-top: 3px; color: var(--muted); font-size: 11px; display: flex; gap: 8px; flex-wrap: wrap; }
         .state-pill {
             border-radius: 9px; padding: 1px 7px; font-size: 10px; font-weight: 700;
             text-transform: uppercase; letter-spacing: 0.3px;
@@ -304,7 +416,7 @@
         /* === Preformatted text === */
         pre {
             white-space: pre-wrap; font-family: 'Consolas', 'Courier New', monospace;
-            font-size: 13px; line-height: 1.6; color: #333;
+            font-size: 13px; line-height: 1.6; color: var(--text);
         }
 
         /* === Toast === */
@@ -323,29 +435,29 @@
 
         /* === Scrollbar === */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #f0f0f0; }
-        ::-webkit-scrollbar-thumb { background: #c8cfe8; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #a0aac8; }
+        ::-webkit-scrollbar-track { background: var(--scroll-track); }
+        ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--scroll-thumb) 80%, #6c7b94 20%); }
 
         /* === Filter Bar === */
         .filter-bar {
             display: none; align-items: center; gap: 8px; flex-wrap: wrap;
             padding: 8px 16px 10px; margin: 0 16px 0;
-            background: white; border-radius: 8px;
-            border: 1px solid #e0e8f5; box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+            background: var(--panel-bg); border-radius: 8px;
+            border: 1px solid var(--panel-border); box-shadow: 0 1px 4px rgba(0,0,0,0.07);
             margin-bottom: 10px;
         }
         .filter-bar.visible { display: flex; }
-        .filter-bar label { font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+        .filter-bar label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
         .filter-select {
-            padding: 5px 8px; border: 1px solid #d0d8e8; border-radius: 5px;
-            font-size: 12px; color: #333; background: #fafbff; outline: none;
+            padding: 5px 8px; border: 1px solid var(--input-border); border-radius: 5px;
+            font-size: 12px; color: var(--text); background: var(--input-bg); outline: none;
             min-width: 110px; cursor: pointer; transition: border-color 0.2s;
         }
-        .filter-select:focus { border-color: #0078d4; }
-        .filter-divider { width: 1px; height: 22px; background: #e0e8f5; margin: 0 4px; }
+        .filter-select:focus { border-color: var(--accent); }
+        .filter-divider { width: 1px; height: 22px; background: var(--panel-border); margin: 0 4px; }
         .filter-active-badge {
-            display: inline-block; background: #0078d4; color: white;
+            display: inline-block; background: var(--accent); color: white;
             border-radius: 10px; padding: 1px 7px; font-size: 11px;
             font-weight: 600; margin-left: 4px;
         }
@@ -357,6 +469,78 @@
             font-size: 12px; color: #7a5300; display: none;
         }
         .cors-notice a { color: #7a5300; font-weight: bold; }
+
+        @media (max-width: 980px) {
+            .header {
+                flex-wrap: wrap;
+                gap: 10px;
+                padding: 12px 14px;
+            }
+            .header h1 { font-size: 15px; }
+            .header-logo { font-size: 24px; }
+            .header-right {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .config-body {
+                grid-template-columns: 1fr;
+            }
+
+            .action-bar {
+                padding: 10px 12px;
+            }
+
+            .action-bar .btn,
+            .action-bar input[type='text'] {
+                width: 100%;
+                min-width: 0 !important;
+            }
+
+            .legend {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            .status-bar {
+                flex-wrap: wrap;
+            }
+
+            .stat-item {
+                min-width: 50%;
+                border-right: none;
+                border-bottom: 1px solid var(--panel-border);
+            }
+            .stat-item:last-child {
+                min-width: 100%;
+                border-bottom: none;
+            }
+
+            .tab-nav {
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+
+            .tab-btn {
+                flex: 0 0 auto;
+                padding: 10px 14px;
+            }
+
+            .report-layout {
+                flex-direction: column;
+                height: auto;
+            }
+
+            .owner-list {
+                width: 100%;
+                max-height: 180px;
+            }
+
+            .modal {
+                width: calc(100% - 20px);
+                max-height: 92vh;
+            }
+        }
     </style>
 </head>
 <body>
@@ -370,7 +554,17 @@
             <div class="subtitle">Priority Risk Matrix · Azure DevOps Work Item Tracker · Web Edition</div>
         </div>
     </div>
-    <div style="font-size: 12px; opacity: 0.7;" id="headerTime"></div>
+    <div class="header-right">
+        <div class="display-menu-wrap" id="displayMenuWrap">
+            <button class="btn btn-secondary display-trigger" id="btnDisplayMenu" onclick="toggleDisplayMenu()" aria-expanded="false" aria-label="Open display settings" title="Display settings">⚙</button>
+            <div class="display-menu" id="displayMenu">
+                <div class="display-menu-title">Display Settings</div>
+                <button class="btn btn-secondary display-menu-item" id="btnTheme" onclick="toggleTheme()" aria-pressed="false">🌞 Light</button>
+                <button class="btn btn-secondary display-menu-item" id="btnFontSize" onclick="toggleFontSize()" aria-pressed="false">A Normal</button>
+            </div>
+        </div>
+        <div style="font-size: 12px; opacity: 0.7;" id="headerTime"></div>
+    </div>
 </div>
 
 <!-- ===== Config Panel ===== -->
@@ -691,6 +885,78 @@ let dataStore = [];   // active work items
 let doneStore = [];   // done/closed work items
 let sortState = { all: null, stories: null, bugs: null };
 let monthlyReportCache = null;
+
+let displayPrefs = {
+    theme: 'light',
+    largeText: false
+};
+
+// ─── Display Preferences ─────────────────────────────────
+function loadDisplayPrefs() {
+    try {
+        const saved = JSON.parse(localStorage.getItem('dashboardDisplayPrefs') || '{}');
+        if (saved.theme === 'dark' || saved.theme === 'light') {
+            displayPrefs.theme = saved.theme;
+        }
+        displayPrefs.largeText = Boolean(saved.largeText);
+    } catch (_) {}
+    applyDisplayPrefs();
+}
+
+function saveDisplayPrefs() {
+    localStorage.setItem('dashboardDisplayPrefs', JSON.stringify(displayPrefs));
+}
+
+function applyDisplayPrefs() {
+    const body = document.body;
+    body.classList.toggle('theme-dark', displayPrefs.theme === 'dark');
+    body.classList.toggle('large-text', displayPrefs.largeText);
+
+    const themeBtn = document.getElementById('btnTheme');
+    if (themeBtn) {
+        const darkOn = displayPrefs.theme === 'dark';
+        themeBtn.textContent = darkOn ? '🌙 Dark' : '🌞 Light';
+        themeBtn.setAttribute('aria-pressed', darkOn ? 'true' : 'false');
+    }
+
+    const fontBtn = document.getElementById('btnFontSize');
+    if (fontBtn) {
+        fontBtn.textContent = displayPrefs.largeText ? 'A+ Large' : 'A Normal';
+        fontBtn.setAttribute('aria-pressed', displayPrefs.largeText ? 'true' : 'false');
+    }
+}
+
+function toggleTheme() {
+    displayPrefs.theme = displayPrefs.theme === 'dark' ? 'light' : 'dark';
+    applyDisplayPrefs();
+    saveDisplayPrefs();
+    closeDisplayMenu();
+    showToast(displayPrefs.theme === 'dark' ? 'Dark mode enabled' : 'Light mode enabled', 'info');
+}
+
+function toggleFontSize() {
+    displayPrefs.largeText = !displayPrefs.largeText;
+    applyDisplayPrefs();
+    saveDisplayPrefs();
+    closeDisplayMenu();
+    showToast(displayPrefs.largeText ? 'Large text mode enabled' : 'Large text mode disabled', 'info');
+}
+
+function toggleDisplayMenu() {
+    const menu = document.getElementById('displayMenu');
+    if (!menu) return;
+    const shouldOpen = !menu.classList.contains('active');
+    menu.classList.toggle('active', shouldOpen);
+    const trigger = document.getElementById('btnDisplayMenu');
+    if (trigger) trigger.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+}
+
+function closeDisplayMenu() {
+    const menu = document.getElementById('displayMenu');
+    if (menu) menu.classList.remove('active');
+    const trigger = document.getElementById('btnDisplayMenu');
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+}
 
 // ─── Config ─────────────────────────────────────────────
 function loadConfig() {
@@ -1239,16 +1505,27 @@ async function exportMonthlyReportToOutlookMail() {
 function buildMonthlyOutlookHtml(cache) {
     const { today, sourceItems, tags, tagMap, doneCount, ongoingCount, newCount } = cache;
     let html = '';
-    html += '<div style="font-family:Segoe UI,Arial,sans-serif;color:#1f2937;line-height:1.45;">';
-    html += `<h2 style="margin:0 0 8px;color:#0f4c81;">Monthly Report - ${esc(today)}</h2>`;
-    html += '<p style="margin:0 0 12px;color:#4b5563;font-size:13px;">Source: Current main list (visible rows)</p>';
-    html += '<table style="border-collapse:collapse;margin:0 0 14px;font-size:13px;">';
+    html += '<div style="font-family:Segoe UI,Arial,sans-serif;color:#1f2937;line-height:1.45;background:#ffffff;">';
+    html += '<table role="presentation" style="width:100%;border-collapse:separate;border-spacing:0;">';
     html += '<tr>';
-    html += `<td style="border:1px solid #dbe2ee;padding:6px 10px;background:#f8fbff;"><b>Total</b><br>${sourceItems.length}</td>`;
-    html += `<td style="border:1px solid #dbe2ee;padding:6px 10px;background:#f8fbff;"><b>Tags</b><br>${tags.length}</td>`;
-    html += `<td style="border:1px solid #dbe2ee;padding:6px 10px;background:#f8fbff;"><b>Done</b><br>${doneCount}</td>`;
-    html += `<td style="border:1px solid #dbe2ee;padding:6px 10px;background:#f8fbff;"><b>Ongoing</b><br>${ongoingCount}</td>`;
-    html += `<td style="border:1px solid #dbe2ee;padding:6px 10px;background:#f8fbff;"><b>New</b><br>${newCount}</td>`;
+    html += '<td style="padding:0 0 10px 0;">';
+    html += '<table role="presentation" style="width:100%;border-collapse:separate;border-spacing:0;">';
+    html += '<tr>';
+    html += `<td style="font-size:22px;font-weight:700;color:#0f4c81;padding:0 0 4px 0;">Monthly Report</td>`;
+    html += `<td style="font-size:12px;color:#667085;text-align:right;padding:0 0 4px 0;">${esc(today)}</td>`;
+    html += '</tr>';
+    html += '<tr>';
+    html += '<td colspan="2" style="font-size:12px;color:#667085;padding:0 0 12px 0;">Source: Current main list (visible rows)</td>';
+    html += '</tr>';
+    html += '</table>';
+
+    html += '<table role="presentation" style="width:100%;border-collapse:separate;border-spacing:10px 0;margin:0 0 14px -10px;">';
+    html += '<tr>';
+    html += renderOutlookStatCard('Total Items', sourceItems.length);
+    html += renderOutlookStatCard('Tags', tags.length);
+    html += renderOutlookStatCard('Done', doneCount);
+    html += renderOutlookStatCard('Ongoing', ongoingCount);
+    html += renderOutlookStatCard('New', newCount);
     html += '</tr>';
     html += '</table>';
 
@@ -1257,34 +1534,65 @@ function buildMonthlyOutlookHtml(cache) {
         const allItems = [...g.Done, ...g.Ongoing, ...g.New].sort((a, b) => String(b.date).localeCompare(String(a.date)));
         const total = g.Done.length + g.Ongoing.length + g.New.length;
 
-        html += `<h3 style="margin:14px 0 6px;color:#1d4b8f;">${esc(tag)} <span style="font-size:12px;color:#6b7280;">(${total})</span></h3>`;
-        html += '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px;">';
-        html += '<tr style="background:#f3f7ff;">';
-        html += '<th style="border:1px solid #dbe2ee;padding:6px;text-align:left;">ID</th>';
-        html += '<th style="border:1px solid #dbe2ee;padding:6px;text-align:left;">Pri</th>';
-        html += '<th style="border:1px solid #dbe2ee;padding:6px;text-align:left;">State</th>';
-        html += '<th style="border:1px solid #dbe2ee;padding:6px;text-align:left;">Type</th>';
-        html += '<th style="border:1px solid #dbe2ee;padding:6px;text-align:left;">Title</th>';
-        html += '<th style="border:1px solid #dbe2ee;padding:6px;text-align:left;">Owner</th>';
-        html += '<th style="border:1px solid #dbe2ee;padding:6px;text-align:left;">Date</th>';
+        html += '<table role="presentation" style="width:100%;border-collapse:separate;border-spacing:0;margin:0 0 12px 0;border:1px solid #dfe7f5;border-radius:8px;overflow:hidden;">';
+        html += '<tr>';
+        html += '<td style="padding:0;">';
+        html += '<table role="presentation" style="width:100%;border-collapse:collapse;">';
+        html += '<tr>';
+        html += `<td style="padding:10px 12px;background:#eef4ff;border-bottom:1px solid #e3ecfb;font-size:14px;font-weight:700;color:#1d4b8f;">${esc(tag)}</td>`;
+        html += '<td style="padding:10px 12px;background:#eef4ff;border-bottom:1px solid #e3ecfb;text-align:right;white-space:nowrap;">';
+        html += renderOutlookMiniBadge(`#27406f`, '#e7eefb', `Total ${total}`);
+        html += renderOutlookMiniBadge('#0f6b36', '#e6f7ec', `Done ${g.Done.length}`);
+        html += renderOutlookMiniBadge('#995f12', '#fff5e9', `Ongoing ${g.Ongoing.length}`);
+        html += renderOutlookMiniBadge('#1d57b7', '#e9f2ff', `New ${g.New.length}`);
+        html += '</td>';
         html += '</tr>';
+        html += '</table>';
 
         for (const item of allItems) {
+            const bucket = classifyMonthlyState(item.state);
+            const stateStyle = getOutlookStateStyle(bucket);
+            html += '<table role="presentation" style="width:100%;border-collapse:collapse;">';
             html += '<tr>';
-            html += `<td style="border:1px solid #e4e9f2;padding:6px;">#${esc(item.id)}</td>`;
-            html += `<td style="border:1px solid #e4e9f2;padding:6px;">P${esc(item.pri)}</td>`;
-            html += `<td style="border:1px solid #e4e9f2;padding:6px;">${esc(classifyMonthlyState(item.state))}</td>`;
-            html += `<td style="border:1px solid #e4e9f2;padding:6px;">${esc(item.type)}</td>`;
-            html += `<td style="border:1px solid #e4e9f2;padding:6px;">${esc(item.title)}</td>`;
-            html += `<td style="border:1px solid #e4e9f2;padding:6px;">${esc(item.owner)}</td>`;
-            html += `<td style="border:1px solid #e4e9f2;padding:6px;white-space:nowrap;">${esc(item.date || '-')}</td>`;
+            html += '<td style="padding:8px 12px;border-bottom:1px solid #f0f4fb;">';
+            html += '<div style="font-size:12px;color:#2e3642;line-height:1.5;">';
+            html += `<span style="color:#0078d4;font-weight:600;">#${esc(item.id)}</span> [P${esc(item.pri)}] ${esc(item.title)}`;
+            html += '</div>';
+            html += '<div style="margin-top:3px;font-size:11px;color:#6f7d93;line-height:1.6;">';
+            html += `<span style="display:inline-block;border-radius:9px;padding:1px 7px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;background:${stateStyle.bg};color:${stateStyle.fg};margin-right:8px;">${esc(bucket)}</span>`;
+            html += `<span style="margin-right:8px;">${esc(item.type)}</span>`;
+            html += `<span style="margin-right:8px;">${esc(item.owner)}</span>`;
+            html += `<span>${esc(item.date || '-')}</span>`;
+            html += '</div>';
+            html += '</td>';
             html += '</tr>';
+            html += '</table>';
         }
+
+        html += '</td>';
+        html += '</tr>';
         html += '</table>';
     }
 
+    html += '</td>';
+    html += '</tr>';
+    html += '</table>';
     html += '</div>';
     return html;
+}
+
+function renderOutlookStatCard(label, value) {
+    return `<td style="padding-left:10px;vertical-align:top;width:20%;"><table role="presentation" style="width:100%;border-collapse:collapse;background:#f7faff;border:1px solid #dbe8fb;border-radius:8px;"><tr><td style="padding:10px 12px;"><div style="font-size:11px;color:#5f6e86;text-transform:uppercase;letter-spacing:0.4px;">${esc(label)}</div><div style="font-size:22px;font-weight:700;color:#1f3a66;margin-top:3px;">${esc(value)}</div></td></tr></table></td>`;
+}
+
+function renderOutlookMiniBadge(color, bg, text) {
+    return `<span style="display:inline-block;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;background:${bg};color:${color};margin-left:6px;">${esc(text)}</span>`;
+}
+
+function getOutlookStateStyle(state) {
+    if (state === 'Done') return { bg: '#e6f7ec', fg: '#0f6b36' };
+    if (state === 'New') return { bg: '#e9f2ff', fg: '#1d57b7' };
+    return { bg: '#fff5e9', fg: '#995f12' };
 }
 
 function buildMonthlyOutlookText(cache) {
@@ -1411,8 +1719,15 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
+        closeDisplayMenu();
         document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
     }
+});
+
+document.addEventListener('click', e => {
+    const wrap = document.getElementById('displayMenuWrap');
+    if (!wrap) return;
+    if (!wrap.contains(e.target)) closeDisplayMenu();
 });
 
 // ─── Clipboard ───────────────────────────────────────────
@@ -1789,6 +2104,7 @@ updateClock();
 setInterval(updateClock, 30_000);
 
 // ─── Init ────────────────────────────────────────────────
+loadDisplayPrefs();
 loadConfig();
 </script>
 </body>
