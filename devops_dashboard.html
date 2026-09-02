@@ -41,7 +41,7 @@
         .config-header:hover { background: #f5f8ff; }
         .config-body {
             padding: 14px 16px 16px;
-            display: grid; grid-template-columns: 1fr 1fr 2fr 1fr 1fr auto;
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
             gap: 10px; align-items: end;
             border-top: 1px solid #e8eef8;
         }
@@ -54,6 +54,7 @@
             background: #fafbff;
         }
         .form-group input:focus { border-color: #0078d4; box-shadow: 0 0 0 2px rgba(0,120,212,0.15); }
+        .form-group small { display: block; font-size: 10px; color: #7a8699; margin-top: 4px; }
 
         /* === Action Bar === */
         .action-bar {
@@ -505,6 +506,20 @@
             <label>Exclude Owners (comma-separated)</label>
             <input type="text" id="excludeInput" value="Feng, Mark" placeholder="e.g. Feng, Mark">
         </div>
+        <div class="form-group">
+            <label>AI Endpoint</label>
+            <input type="text" id="aiEndpointInput" value="http://localhost:11434/v1/chat/completions" placeholder="http://localhost:11434/v1/chat/completions">
+            <small>Ollama local endpoint (OpenAI-compatible)</small>
+        </div>
+        <div class="form-group">
+            <label>AI API Key</label>
+            <input type="password" id="aiApiKeyInput" placeholder="Optional for local Ollama">
+        </div>
+        <div class="form-group">
+            <label>AI Model</label>
+            <input type="text" id="aiModelInput" list="aiModelList" value="gemma4:26b" placeholder="e.g. gemma4:26b">
+            <datalist id="aiModelList"></datalist>
+        </div>
         <div style="display:flex; flex-direction:column; gap:6px;">
             <button class="btn btn-primary" onclick="saveConfig()">💾 Save</button>
             <button class="btn btn-secondary" onclick="clearConfig()">🗑️ Clear</button>
@@ -566,6 +581,9 @@
         <button class="btn btn-secondary" id="btnReport" disabled onclick="openPersonReport()">👤 Member Report</button>
         <button class="btn btn-secondary" id="btnDone" disabled onclick="openDoneSummary()">📊 Monthly Report</button>
         <button class="btn btn-secondary" id="btnWeekly" disabled onclick="openWeeklySummary()">🚀 Auto Weekly Report</button>
+        <button class="btn btn-secondary" id="btnListModels" onclick="listOllamaModels()">📚 List Models</button>
+        <button class="btn btn-secondary" id="btnTestAi" onclick="testAiConnection()">🧪 Test Ollama</button>
+        <button class="btn btn-secondary" id="btnAiAdvisory" disabled onclick="generateAiAdvisories()">🤖 Generate AI Advisory</button>
     </div>
 
     <div class="action-group">
@@ -817,6 +835,9 @@ function loadConfig() {
         if (cfg.token)   document.getElementById('tokenInput').value   = cfg.token;
         if (cfg.filter)  document.getElementById('filterInput').value  = cfg.filter;
         if (cfg.exclude) document.getElementById('excludeInput').value = cfg.exclude;
+        if (cfg.aiEndpoint) document.getElementById('aiEndpointInput').value = cfg.aiEndpoint;
+        if (cfg.aiApiKey)   document.getElementById('aiApiKeyInput').value   = cfg.aiApiKey;
+        if (cfg.aiModel)    document.getElementById('aiModelInput').value    = cfg.aiModel;
     } catch (_) {}
 }
 
@@ -826,7 +847,10 @@ function saveConfig() {
         project: document.getElementById('projectInput').value.trim(),
         token:   document.getElementById('tokenInput').value.trim(),
         filter:  document.getElementById('filterInput').value.trim(),
-        exclude: document.getElementById('excludeInput').value.trim()
+        exclude: document.getElementById('excludeInput').value.trim(),
+        aiEndpoint: document.getElementById('aiEndpointInput').value.trim(),
+        aiApiKey: document.getElementById('aiApiKeyInput').value.trim(),
+        aiModel: document.getElementById('aiModelInput').value.trim()
     };
     localStorage.setItem('adoCfg', JSON.stringify(cfg));
     showToast('Settings saved to browser', 'success');
@@ -836,6 +860,9 @@ function clearConfig() {
     if (!confirm('Are you sure you want to clear all saved settings?')) return;
     localStorage.removeItem('adoCfg');
     document.getElementById('tokenInput').value = '';
+    document.getElementById('aiEndpointInput').value = 'http://localhost:11434/v1/chat/completions';
+    document.getElementById('aiApiKeyInput').value = '';
+    document.getElementById('aiModelInput').value = 'gemma4:26b';
     showToast('Settings cleared', 'info');
 }
 
@@ -854,6 +881,14 @@ function getConfig() {
         filter:   document.getElementById('filterInput').value.trim().toLowerCase(),
         excludes: document.getElementById('excludeInput').value
                     .split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
+    };
+}
+
+function getAiConfig() {
+    return {
+        endpoint: document.getElementById('aiEndpointInput').value.trim() || 'http://localhost:11434/v1/chat/completions',
+        apiKey: document.getElementById('aiApiKeyInput').value.trim(),
+        model: document.getElementById('aiModelInput').value.trim() || 'gemma4:26b'
     };
 }
 
@@ -994,11 +1029,15 @@ async function fetchData() {
                     pri,
                     type:  f['System.WorkItemType'] || 'N/A',
                     title: f['System.Title']        || '',
+                    description: f['System.Description'] || '',
+                    discussion: f['System.History'] || f['Microsoft.VSTS.Common.Discussion'] || '',
                     state: f['System.State']        || '',
                     owner,
                     tags,
                     date:  changedRaw.slice(0, 16).replace('T', ' '),
-                    stale: daysStale > 14
+                    stale: daysStale > 14,
+                    advisory: '',
+                    aiAdvisory: ''
                 });
             }
         }
@@ -1189,7 +1228,7 @@ function switchTab(name, btn) {
 
 // ─── Enable Buttons ──────────────────────────────────────
 function enableButtons() {
-    ['btnReport', 'btnDone', 'btnWeekly', 'btnExport'].forEach(id => {
+    ['btnReport', 'btnDone', 'btnWeekly', 'btnExport', 'btnAiAdvisory'].forEach(id => {
         document.getElementById(id).disabled = false;
     });
 }
@@ -1206,6 +1245,7 @@ function openPersonReport() {
     Object.keys(ownerMap).sort().forEach(owner => {
         const div = document.createElement('div');
         div.className = 'owner-item';
+        div.dataset.owner = owner;
         div.innerHTML = `${esc(owner)} <span class="owner-count">${ownerMap[owner].length}</span>`;
         div.onclick = () => {
             document.querySelectorAll('.owner-item').forEach(d => d.classList.remove('active'));
@@ -1234,9 +1274,10 @@ function renderOwnerReport(owner, items) {
             const url      = `https://dev.azure.com/${org}/${encodeURIComponent(project)}/_workitems/edit/${item.id}`;
             const priColor = item.pri === 1 ? '#c0392b' : item.pri === 2 ? '#e67e22' : '#3498db';
             const stale    = item.stale ? ' <span style="color:#e74c3c;font-size:11px;font-weight:bold;">(Stale)</span>' : '';
+            const advisory = esc(item.aiAdvisory || item.advisory || generateAdvisory(item));
             html += `<div class="work-item">• <span style="color:${priColor};font-weight:bold;">[P${item.pri}]</span> `
                 + `<a href="${url}" target="_blank" rel="noopener" style="color:#0078d4;">#${item.id}</a>${stale} `
-                + `— ${esc(item.title)}</div>`;
+                + `— ${esc(item.title)}<br><span style="display:inline-block;margin-left:20px;color:#4a5a75;font-size:12px;">Next Step: ${advisory}</span></div>`;
         }
     }
 
@@ -1544,10 +1585,11 @@ function openWeeklySummary() {
 
 // ─── Export CSV ──────────────────────────────────────────
 function exportCSV() {
-    const header = ['ID', 'Priority', 'Type', 'Title', 'State', 'Owner', 'ChangedDate', 'Stale'];
+    const header = ['ID', 'Priority', 'Type', 'Title', 'Advisory', 'State', 'Owner', 'ChangedDate', 'Stale'];
     const rows = dataStore.map(i => [
         i.id, i.pri, i.type,
         `"${String(i.title).replace(/"/g, '""')}"`,
+        `"${String(i.advisory || generateAdvisory(i)).replace(/"/g, '""')}"`,
         i.state, i.owner, i.date, i.stale ? 'Yes' : 'No'
     ]);
 
@@ -1817,11 +1859,15 @@ function mapApiItemsToDashboardItems(items) {
             pri: f['Microsoft.VSTS.Common.Priority'] ?? 4,
             type: f['System.WorkItemType'] || 'N/A',
             title: f['System.Title'] || '',
+            description: f['System.Description'] || '',
+            discussion: f['System.History'] || f['Microsoft.VSTS.Common.Discussion'] || '',
             state: f['System.State'] || '',
             owner: f['System.AssignedTo']?.displayName || 'Unassigned',
             tags,
             date: changedRaw.slice(0, 16).replace('T', ' '),
-            stale: daysStale > 14
+            stale: daysStale > 14,
+            advisory: '',
+            aiAdvisory: ''
         };
     });
 }
@@ -1942,6 +1988,504 @@ function buildDirectResultRows(items, org, project) {
     }
 
     return html || '<tr><td colspan="8" class="empty-state">No items found for the specified input</td></tr>';
+}
+
+async function generateAiAdvisories() {
+    const aiCfg = getAiConfig();
+    if (!aiCfg.endpoint || !aiCfg.model) {
+        showToast('Please fill AI Endpoint and Model first', 'warn');
+        return;
+    }
+    if (!dataStore.length) {
+        showToast('Please load data first', 'warn');
+        return;
+    }
+
+    const btn = document.getElementById('btnAiAdvisory');
+    btn.disabled = true;
+    btn.textContent = '🤖 Generating...';
+
+    const candidates = dataStore.filter(item => {
+        const t = String(item.type || '').toLowerCase();
+        return t.includes('story') || t.includes('bug');
+    });
+    const targets = candidates.slice(0, 60);
+    let aiSuccess = 0;
+    let fallbackCount = 0;
+
+    try {
+        const concurrency = 3;
+        for (let i = 0; i < targets.length; i += concurrency) {
+            const group = targets.slice(i, i + concurrency);
+            const results = await Promise.all(group.map(async item => {
+                try {
+                    const text = await requestAiAdvisory(item, aiCfg);
+                    return { ok: true, text };
+                } catch (err) {
+                    console.warn('AI advisory item failed', item?.id, err);
+                    return { ok: false, text: '' };
+                }
+            }));
+
+            results.forEach((result, idx) => {
+                if (result.ok && result.text) {
+                    group[idx].aiAdvisory = result.text;
+                    aiSuccess += 1;
+                } else {
+                    group[idx].aiAdvisory = '';
+                    fallbackCount += 1;
+                }
+            });
+        }
+
+        refreshActiveOwnerReport();
+        if (candidates.length > targets.length) {
+            showToast(`AI advisory: ${aiSuccess} AI, ${fallbackCount} fallback (limited to first ${targets.length})`, aiSuccess ? 'success' : 'warn');
+        } else if (aiSuccess > 0 || fallbackCount > 0) {
+            showToast(`AI advisory: ${aiSuccess} AI, ${fallbackCount} fallback`, aiSuccess ? 'success' : 'warn');
+        } else {
+            showToast('No eligible Story/Bug items found for advisory generation', 'warn');
+        }
+    } catch (err) {
+        console.error(err);
+        const msg = String(err?.message || '').toLowerCase();
+        if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('econnrefused')) {
+            showToast('AI advisory failed. Ensure Ollama is running: ollama serve, and model is installed.', 'warn');
+        } else {
+            showToast('AI advisory failed; using rule-based advisory as fallback', 'warn');
+        }
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🤖 Generate AI Advisory';
+    }
+}
+
+async function testAiConnection() {
+    const aiCfg = getAiConfig();
+    if (!aiCfg.endpoint || !aiCfg.model) {
+        showToast('Please fill AI Endpoint and Model first', 'warn');
+        return;
+    }
+
+    const btn = document.getElementById('btnTestAi');
+    btn.disabled = true;
+    btn.textContent = '🧪 Testing...';
+
+    try {
+        const probeItem = {
+            type: 'User Story',
+            pri: 2,
+            state: 'Active',
+            owner: 'Local Test',
+            stale: false,
+            tags: ['ollama-test'],
+            title: 'Verify local AI advisory connection',
+            description: 'Use local Ollama to generate a short advisory for a dashboard item.',
+            discussion: 'Need a quick connection check before generating the full report.'
+        };
+
+        const text = await requestAiAdvisory(probeItem, aiCfg);
+        if (!text) {
+            throw new Error('Empty AI response');
+        }
+        showToast(`Ollama connected: ${text.slice(0, 80)}`, 'success');
+    } catch (err) {
+        console.error(err);
+        const msg = String(err?.message || 'Unknown error');
+        showToast(`Ollama test failed: ${msg.slice(0, 120)}`, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🧪 Test Ollama';
+    }
+}
+
+async function listOllamaModels() {
+    const aiCfg = getAiConfig();
+    if (!aiCfg.endpoint) {
+        showToast('Please fill AI Endpoint first', 'warn');
+        return;
+    }
+
+    const btn = document.getElementById('btnListModels');
+    btn.disabled = true;
+    btn.textContent = '📚 Loading...';
+
+    try {
+        const url = buildOllamaTagsUrl(aiCfg.endpoint);
+        const res = await fetch(url, { method: 'GET' });
+        if (!res.ok) {
+            const txt = await res.text().catch(() => '');
+            throw new Error(`Model list ${res.status}: ${txt.slice(0, 200)}`);
+        }
+
+        const data = await res.json();
+        const models = (data?.models || [])
+            .map(m => m?.name)
+            .filter(Boolean);
+
+        if (!models.length) {
+            showToast('No Ollama models found locally', 'warn');
+            return;
+        }
+
+        populateAiModelList(models);
+        document.getElementById('aiModelInput').value = models[0];
+        showToast(`Found ${models.length} models. Using ${models[0]}`, 'success');
+    } catch (err) {
+        console.error(err);
+        showToast('Failed to load Ollama models from local endpoint', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '📚 List Models';
+    }
+}
+
+function buildOllamaTagsUrl(endpoint) {
+    const raw = String(endpoint || '').trim();
+    if (!raw) return 'http://localhost:11434/api/tags';
+    return raw
+        .replace(/\/v1\/chat\/completions\/?$/i, '/api/tags')
+        .replace(/\/api\/chat\/?$/i, '/api/tags');
+}
+
+function populateAiModelList(models) {
+    const list = document.getElementById('aiModelList');
+    if (!list) return;
+    list.innerHTML = '';
+
+    models.forEach(model => {
+        const option = document.createElement('option');
+        option.value = model;
+        list.appendChild(option);
+    });
+}
+
+function refreshActiveOwnerReport() {
+    const activeOwnerEl = document.querySelector('#ownerList .owner-item.active');
+    if (!activeOwnerEl) return;
+    const owner = activeOwnerEl.dataset.owner || activeOwnerEl.textContent.trim();
+    const items = dataStore.filter(i => i.owner === owner);
+    if (items.length > 0) renderOwnerReport(owner, items);
+}
+
+async function requestAiAdvisory(item, aiCfg) {
+    const endpoint = normalizeAiChatUrl(aiCfg.endpoint);
+    let messages = buildAiMessages(item, false);
+    const payload = buildAiPayload(endpoint, aiCfg, item, messages);
+
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    if (aiCfg.apiKey) {
+        headers['Authorization'] = `Bearer ${aiCfg.apiKey}`;
+        headers['api-key'] = aiCfg.apiKey;
+    }
+
+    const firstAttempt = await sendAiRequest(endpoint, headers, payload);
+    let raw = extractAiText(firstAttempt);
+
+    if (!raw && isOllamaCompatibleEndpoint(endpoint)) {
+        const fallbackEndpoint = toNativeOllamaChatUrl(endpoint);
+        if (fallbackEndpoint !== endpoint) {
+            const fallbackPayload = buildAiPayload(fallbackEndpoint, aiCfg, item, messages);
+            const secondAttempt = await sendAiRequest(fallbackEndpoint, headers, fallbackPayload);
+            raw = extractAiText(secondAttempt);
+            if (!raw) {
+                throw new Error(`Empty AI response: ${summarizeAiResponse(secondAttempt)}`);
+            }
+        } else {
+            throw new Error(`Empty AI response: ${summarizeAiResponse(firstAttempt)}`);
+        }
+    }
+
+    raw = normalizeAiAdvisory(raw);
+    if (looksLikeSourceEcho(raw, item)) {
+        messages = buildAiMessages(item, true);
+        const retryPayload = buildAiPayload(endpoint, aiCfg, item, messages);
+        const retryAttempt = await sendAiRequest(endpoint, headers, retryPayload);
+        raw = normalizeAiAdvisory(extractAiText(retryAttempt));
+
+        if ((!raw || looksLikeSourceEcho(raw, item)) && isOllamaCompatibleEndpoint(endpoint)) {
+            const fallbackEndpoint = toNativeOllamaChatUrl(endpoint);
+            if (fallbackEndpoint !== endpoint) {
+                const nativeRetryPayload = buildAiPayload(fallbackEndpoint, aiCfg, item, messages);
+                const nativeRetryAttempt = await sendAiRequest(fallbackEndpoint, headers, nativeRetryPayload);
+                raw = normalizeAiAdvisory(extractAiText(nativeRetryAttempt));
+            }
+        }
+    }
+
+    if (!raw) throw new Error(`Empty AI response: ${summarizeAiResponse(firstAttempt)}`);
+    if (looksLikeSourceEcho(raw, item)) return '';
+    return raw.slice(0, 180);
+}
+
+async function sendAiRequest(endpoint, headers, payload) {
+    const res = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(`AI API ${res.status}: ${txt.slice(0, 200)}`);
+    }
+    return res.json();
+}
+
+function buildAiPayload(endpoint, aiCfg, item, messages) {
+    if (isNativeOllamaChatEndpoint(endpoint)) {
+        return {
+            model: aiCfg.model,
+            messages,
+            stream: false,
+            options: {
+                temperature: 0.2,
+                num_predict: 120
+            }
+        };
+    }
+
+    return {
+        model: aiCfg.model,
+        messages,
+        temperature: 0.2,
+        max_tokens: 120,
+        stream: false
+    };
+}
+
+function buildAiMessages(item, strictMode) {
+    return [
+        {
+            role: 'system',
+            content: strictMode
+                ? 'You are a senior PM coach reviewing one Azure DevOps work item. Your job is to infer the single most useful next action. Do not summarize or paraphrase the ticket. Do not repeat title phrases. Return exactly one imperative sentence in English, max 160 chars.'
+                : 'You are a senior PM coach reviewing a single Azure DevOps work item. Return exactly one concrete next step in English. Max 180 chars. No markdown. Start with an action verb. Do not restate the ticket. Focus on the most useful next action for the owner or PM.'
+        },
+        {
+            role: 'user',
+            content: buildAiAdvisoryPrompt(item, strictMode)
+        }
+    ];
+}
+
+function buildAiAdvisoryPrompt(item, strictMode = false) {
+    const tags = Array.isArray(item.tags) && item.tags.length ? item.tags.join(', ') : '-';
+    const description = stripHtml(String(item.description || ''));
+    const discussion = stripHtml(String(item.discussion || ''));
+    const staleText = item.stale ? 'Yes (>14 days)' : 'No';
+    const typeText = String(item.type || '');
+    const lines = [
+        `Work item type: ${typeText}`,
+        `Priority: P${item.pri}`,
+        `State: ${item.state}`,
+        `Owner: ${item.owner}`,
+        `Stale: ${staleText}`,
+        `Tags: ${tags}`,
+        `Title: ${item.title}`,
+        `Description: ${description.slice(0, 1200)}`,
+        `Discussion: ${discussion.slice(0, 1200)}`,
+        'Task: Analyze the work item and provide the single best next step.',
+        'Prefer actions like clarify scope, define acceptance criteria, confirm dependency owner, break down implementation, verify test plan, or request status update.',
+        'If the item is stale, overdue, blocked, missing acceptance criteria, or missing owner clarity, prioritize that gap.'
+    ];
+
+    if (strictMode) {
+        lines.push('Do not copy the title, description, or discussion. Infer the blocker or missing decision and tell the owner exactly what to do next.');
+        lines.push('Bad output example: Implement the login page based on the requirement.');
+        lines.push('Good output example: Define acceptance criteria for login failure states and confirm the backend error contract with the API owner.');
+    }
+
+    lines.push('Output rules: one sentence only, imperative style, no bullets, no headings, no explanation.');
+    return lines.join('\n');
+}
+
+function extractAiText(resp) {
+    const msg = resp?.choices?.[0]?.message?.content;
+    if (typeof msg === 'string' && msg.trim()) return msg.trim();
+    if (Array.isArray(msg)) {
+        const merged = msg.map(p => (typeof p === 'string' ? p : p?.text || '')).join(' ').trim();
+        if (merged) return merged;
+    }
+    const plainMessage = resp?.message?.content;
+    if (typeof plainMessage === 'string' && plainMessage.trim()) return plainMessage.trim();
+    if (Array.isArray(plainMessage)) {
+        const merged = plainMessage.map(p => (typeof p === 'string' ? p : p?.text || '')).join(' ').trim();
+        if (merged) return merged;
+    }
+    const responseText = resp?.response;
+    if (typeof responseText === 'string' && responseText.trim()) return responseText.trim();
+    const content = resp?.choices?.[0]?.text;
+    if (typeof content === 'string' && content.trim()) return content.trim();
+    const reasoningContent = resp?.choices?.[0]?.message?.reasoning_content;
+    if (typeof reasoningContent === 'string' && reasoningContent.trim()) return reasoningContent.trim();
+    const thinking = resp?.message?.thinking;
+    if (typeof thinking === 'string' && thinking.trim()) return thinking.trim();
+    const output = resp?.output?.[0]?.content;
+    if (Array.isArray(output)) {
+        const merged = output.map(part => part?.text || '').join(' ').trim();
+        if (merged) return merged;
+    }
+    const outText = resp?.output_text;
+    if (typeof outText === 'string' && outText.trim()) return outText.trim();
+    return '';
+}
+
+function normalizeAiAdvisory(text) {
+    const normalized = String(text || '')
+        .replace(/<think>[\s\S]*?<\/think>/gi, ' ')
+        .replace(/^advisory\s*:\s*/i, '')
+        .replace(/^"|"$/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const lines = normalized
+        .split(/\n+/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .filter(line => !/^(role|output|language)\s*:/i.test(line))
+        .filter(line => !/^\*\s*(role|output|language)\s*:/i.test(line));
+
+    return (lines.join(' ') || normalized)
+        .replace(/\*\s+/g, '')
+        .replace(/^(next step|advisory|recommendation)\s*:\s*/i, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function looksLikeSourceEcho(text, item) {
+    const answer = normalizeTextForComparison(text);
+    if (!answer) return true;
+
+    const title = normalizeTextForComparison(item?.title || '');
+    const description = normalizeTextForComparison(stripHtml(String(item?.description || '')));
+    const discussion = normalizeTextForComparison(stripHtml(String(item?.discussion || '')));
+    const source = `${title} ${description} ${discussion}`.trim();
+
+    if (!source) return false;
+    if (source.includes(answer) && answer.length >= 24) return true;
+    if (title && answer.includes(title.slice(0, Math.min(title.length, 32)))) return true;
+
+    const answerTokens = uniqueMeaningfulTokens(answer);
+    if (!answerTokens.length) return true;
+    const sourceTokens = new Set(uniqueMeaningfulTokens(source));
+    const overlap = answerTokens.filter(token => sourceTokens.has(token)).length;
+    return overlap / answerTokens.length >= 0.72;
+}
+
+function normalizeTextForComparison(text) {
+    return String(text || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function uniqueMeaningfulTokens(text) {
+    const stopWords = new Set(['the','a','an','and','or','to','for','of','in','on','with','by','is','are','be','as','at','from','this','that','it','its','based','using','use','user','story']);
+    return [...new Set(
+        normalizeTextForComparison(text)
+            .split(' ')
+            .filter(token => token.length >= 4 && !stopWords.has(token))
+    )];
+}
+
+function normalizeAiChatUrl(endpoint) {
+    const raw = String(endpoint || '').trim();
+    if (!raw) return 'http://localhost:11434/v1/chat/completions';
+    return raw;
+}
+
+function isNativeOllamaChatEndpoint(endpoint) {
+    return /\/api\/chat\/?$/i.test(String(endpoint || ''));
+}
+
+function isOllamaCompatibleEndpoint(endpoint) {
+    return /localhost:11434|127\.0\.0\.1:11434/i.test(String(endpoint || ''));
+}
+
+function toNativeOllamaChatUrl(endpoint) {
+    const raw = String(endpoint || '').trim();
+    if (!raw) return 'http://localhost:11434/api/chat';
+    return raw
+        .replace(/\/v1\/chat\/completions\/?$/i, '/api/chat')
+        .replace(/\/api\/generate\/?$/i, '/api/chat');
+}
+
+function summarizeAiResponse(resp) {
+    try {
+        const summary = {
+            keys: Object.keys(resp || {}).slice(0, 10),
+            messageContent: resp?.message?.content || '',
+            response: resp?.response || '',
+            choiceContent: resp?.choices?.[0]?.message?.content || '',
+            choiceText: resp?.choices?.[0]?.text || '',
+            doneReason: resp?.done_reason || resp?.choices?.[0]?.finish_reason || ''
+        };
+        return JSON.stringify(summary).slice(0, 220);
+    } catch (_) {
+        return 'unreadable response payload';
+    }
+}
+
+function generateAdvisory(item) {
+    const type = String(item?.type || '').toLowerCase();
+    const title = String(item?.title || '').toLowerCase();
+    const state = String(item?.state || '').toLowerCase();
+    const owner = String(item?.owner || '');
+    const tagsText = Array.isArray(item?.tags) ? item.tags.join(' ').toLowerCase() : '';
+    const desc = stripHtml(String(item?.description || '')).toLowerCase();
+    const discussion = stripHtml(String(item?.discussion || '')).toLowerCase();
+    const storyText = `${title} ${desc} ${discussion}`;
+    const notes = [];
+
+    if (owner.toLowerCase() === 'unassigned') {
+        notes.push('Assign an owner to avoid stalled handoff');
+    }
+
+    if (item?.stale) {
+        notes.push('No update for over 14 days; request status and blocker sync');
+    }
+
+    const blocked = /block|blocked|blocker|dependency|waiting|卡住|相依|待確認/.test(`${title} ${desc} ${discussion} ${state} ${tagsText}`);
+    if (blocked) {
+        notes.push('Escalate dependency owner and set an unblock ETA');
+    }
+
+    if (type.includes('story')) {
+        if (!/(as a|i want|so that|使用者|我想要|以便)/.test(storyText)) {
+            notes.push('Add user story format: As a / I want / So that');
+        }
+        if (!/(acceptance criteria|ac:|驗收|測試|test case|uat)/.test(storyText)) {
+            notes.push('Add acceptance criteria and test scenarios');
+        }
+        if ((item?.pri ?? 4) <= 2) {
+            notes.push('P1/P2 story: split into weekly deliverable milestones');
+        }
+    } else if (type.includes('bug')) {
+        if ((item?.pri ?? 4) <= 2) {
+            notes.push('High-priority bug: confirm repro steps and rollback plan');
+        }
+    }
+
+    if (notes.length === 0) {
+        return 'Healthy item; keep weekly progress updates';
+    }
+    return notes.slice(0, 2).join('; ');
+}
+
+function stripHtml(raw) {
+    return String(raw || '')
+        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/\s+/g, ' ')
+        .trim();
 }
 
 // ─── Utility ─────────────────────────────────────────────
