@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ian's Tool 主控面板</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', -apple-system, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* === Layout === */
+        .container { display: flex; height: 100vh; }
+        .sidebar { width: 250px; background: #1e1e2e; color: white; display: flex; flex-direction: column; box-shadow: 2px 0 12px rgba(0,0,0,0.15); }
+        .main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .content-area { flex: 1; overflow: auto; padding: 24px; }
+
+        /* === Header === */
+        .header h1 { font-size: 20px; font-weight: 600; }
+        .header-right { display: flex; gap: 16px; align-items: center; }
+        
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4CAF50;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.warning {
+            background: #FF9800;
+            animation: pulse-warning 2s infinite;
+        }
+
+        .status-indicator.error {
+            background: #f44336;
+            animation: pulse-error 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes pulse-warning {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        @keyframes pulse-error {
+            0%, 100% { opacity: 1; box-shadow: 0 0 6px #f44336; }
+            50% { opacity: 0.7; box-shadow: 0 0 12px #f44336; }
+        }
+
+        /* === Sidebar === */
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-header h2 {
+            font-size: 16px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 0;
+        }
+
+        .nav-section {
+            margin-bottom: 8px;
+        }
+
+        .nav-section-title {
+            font-size: 11px;
+            color: #999;
+            text-transform: uppercase;
+            padding: 12px 16px 8px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+            font-size: 14px;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(90deg, rgba(102, 126, 234, 0.3), rgba(118, 75, 162, 0.3));
+            border-left-color: #667eea;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .nav-item-icon { font-size: 18px; }
+
+        .sidebar-footer {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 12px 16px;
+            font-size: 12px;
+            color: #999;
+        }
+
+        /* === Content === */
+        .page { display: none; }
+        .page.active { display: block; }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            color: #333;
+        }
+
+        /* === Welcome Page === */
+        .welcome-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 24px;
+        }
+
+        .welcome-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .welcome-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        .card-icon { font-size: 40px; margin-bottom: 12px; }
+        .card-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+        .card-desc { font-size: 13px; color: #666; margin-bottom: 16px; }
+        .card-action { display: inline-block; padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; transition: background 0.2s; }
+        .card-action:hover { background: #5568d3; }
+
+        /* === Diagnosis Page === */
+        .diagnosis-container {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .status-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 16px;
+        }
+
+        .status-card.ok { background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); }
+        .status-card.warning { background: linear-gradient(135deg, #FF9800 0%, #e68900 100%); }
+        .status-card.error { background: linear-gradient(135deg, #f44336 0%, #da190b 100%); }
+
+        .status-card-title { font-size: 13px; opacity: 0.9; margin-bottom: 8px; }
+        .status-card-value { font-size: 24px; font-weight: 700; }
+        .status-card-detail { font-size: 12px; opacity: 0.8; margin-top: 8px; }
+
+        .quick-actions {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        /* === Iframe Container === */
+        .iframe-container {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            height: 100%;
+        }
+
+        .iframe-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* === Alert === */
+        .alert {
+            background: #fff3e0;
+            border-left: 4px solid #FF9800;
+            padding: 16px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .alert-icon { font-size: 20px; }
+        .alert-content { flex: 1; }
+        .alert-title { font-weight: 600; margin-bottom: 4px; }
+
+        /* === Scrollbar === */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #999; }
+
+        .sidebar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); }
+        .sidebar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); }
+        .sidebar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.5); }
+
+        /* === Loading === */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* === Quick Links === */
+        .quick-links {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .quick-links h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #333;
+        }
+
+        .links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .link-btn {
+            padding: 12px 16px;
+            background: #f5f5f5;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            font-size: 13px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: #333;
+        }
+
+        .link-btn:hover {
+            background: #e8f4fd;
+            border-color: #667eea;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>🛠️ Ian's Tool</h2>
+                <p style="font-size: 12px; color: #999; margin-top: 4px;">工具主控面板</p>
+            </div>
+
+            <div class="sidebar-nav">
+                <!-- Home -->
+                <div class="nav-section">
+                    <div class="nav-item active" onclick="showPage('home')">
+                        <span class="nav-item-icon">🏠</span>
+                        <span>主頁</span>
+                    </div>
+                    <div class="nav-item" onclick="showPage('diagnosis')">
+                        <span class="nav-item-icon">🔍</span>
+                        <span>系統診斷</span>
+                    </div>
+                </div>
+
+                <!-- Tools -->
+                <div class="nav-section">
+                    <div class="nav-section-title">工具</div>
+                    <div class="nav-item" onclick="showPage('translator')">
+                        <span class="nav-item-icon">🗣️</span>
+                        <span>即時翻譯</span>
+                    </div>
+                    <div class="nav-item" onclick="showPage('devops')">
+                        <span class="nav-item-icon">📊</span>
+                        <span>DevOps儀表板</span>
+                    </div>
+                    <div class="nav-item" onclick="showPage('outlook')">
+                        <span class="nav-item-icon">📧</span>
+                        <span>Outlook工具</span>
+                    </div>
+                    <div class="nav-item" onclick="showPage('stocks')">
+                        <span class="nav-item-icon">📈</span>
+                        <span>台灣股票</span>
+                    </div>
+                </div>
+
+                <!-- Utilities -->
+                <div class="nav-section">
+                    <div class="nav-section-title">其他</div>
+                    <div class="nav-item" onclick="showPage('education')">
+                        <span class="nav-item-icon">📚</span>
+                        <span>教材生成器</span>
+                    </div>
+                    <div class="nav-item" onclick="openExternal('random')">
+                        <span class="nav-item-icon">🎲</span>
+                        <span>隨機工具</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div>上次更新: <span id="lastUpdate">-</span></div>
+                <div style="margin-top: 8px;">版本: 1.0</div>
+            </div>
+        </div>
+
+        <!-- Main Area -->
+        <div class="main-area">
+            <!-- Header -->
+            <div class="header">
+                <div>
+                    <h1 id="pageTitle">主頁</h1>
+                </div>
+                <div class="header-right">
+                    <div class="system-status" id="systemStatus">
+                        <span class="status-indicator"></span>
+                        <span>系統正常</span>
+                    </div>
+                    <button class="btn btn-primary" onclick="refreshDiagnosis()" style="padding: 8px 16px; font-size: 13px;">🔄 刷新</button>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="content-area" id="contentArea">
+                <!-- Home Page -->
+                <div class="page active" id="home">
+                    <div class="page-title">歡迎使用 Ian's Tool 主控面板</div>
+                    
+                    <div class="alert">
+                        <span class="alert-icon">ℹ️</span>
+                        <div class="alert-content">
+                            <div class="alert-title">系統狀態</div>
+                            <div id="welcomeStatus">載入中...</div>
+                        </div>
+                    </div>
+
+                    <div class="welcome-grid">
+                        <div class="welcome-card">
+                            <div class="card-icon">🗣️</div>
+                            <div class="card-title">桌面即時翻譯</div>
+                            <div class="card-desc">實時英翻中語音工具，支持loopback音訊</div>
+                            <button class="card-action" onclick="showPage('translator')">進入</button>
+                        </div>
+
+                        <div class="welcome-card">
+                            <div class="card-icon">📊</div>
+                            <div class="card-title">DevOps儀表板</div>
+                            <div class="card-desc">HP BIOS HE Solution Team PM儀表板</div>
+                            <button class="card-action" onclick="showPage('devops')">進入</button>
+                        </div>
+
+                        <div class="welcome-card">
+                            <div class="card-icon">📧</div>
+                            <div class="card-title">Outlook工具</div>
+                            <div class="card-desc">整合Outlook郵件和行事曆</div>
+                            <button class="card-action" onclick="showPage('outlook')">進入</button>
+                        </div>
+
+                        <div class="welcome-card">
+                            <div class="card-icon">📈</div>
+                            <div class="card-title">台灣股票</div>
+                            <div class="card-desc">台灣股市Top 10即時行情</div>
+                            <button class="card-action" onclick="showPage('stocks')">進入</button>
+                        </div>
+
+                        <div class="welcome-card">
+                            <div class="card-icon">📚</div>
+                            <div class="card-title">教材生成器</div>
+                            <div class="card-desc">AI輔助教材內容生成</div>
+                            <button class="card-action" onclick="showPage('education')">進入</button>
+                        </div>
+
+                        <div class="welcome-card">
+                            <div class="card-icon">🔍</div>
+                            <div class="card-title">系統診斷</div>
+                            <div class="card-desc">檢查所有工具和系統的健康狀態</div>
+                            <button class="card-action" onclick="showPage('diagnosis')">進入</button>
+                        </div>
+                    </div>
+
+                    <div class="quick-links">
+                        <h3>快速連結</h3>
+                        <div class="links-grid">
+                            <button class="link-btn" onclick="openInNewWindow('devops_dashboard.html')">📊 直接打開DevOps儀表板</button>
+                            <button class="link-btn" onclick="openInNewWindow('outlook-tool.html')">📧 直接打開Outlook工具</button>
+                            <button class="link-btn" onclick="openInNewWindow('taiwan-stocks-top10.html')">📈 直接打開股票行情</button>
+                            <button class="link-btn" onclick="openInNewWindow('教材生成器主控台.html')">📚 直接打開教材生成器</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Diagnosis Page -->
+                <div class="page" id="diagnosis">
+                    <div class="page-title">🔍 系統診斷</div>
+
+                    <div class="quick-actions">
+                        <button class="btn btn-primary" onclick="runFullDiagnosis()">🔄 執行完整診斷</button>
+                    </div>
+
+                    <div class="status-grid" id="diagnosisGrid">
+                        <div class="status-card">
+                            <div class="status-card-title">正常</div>
+                            <div class="status-card-value" id="passedCount">-</div>
+                        </div>
+                        <div class="status-card warning">
+                            <div class="status-card-title">警告</div>
+                            <div class="status-card-value" id="warningCount">-</div>
+                        </div>
+                        <div class="status-card error">
+                            <div class="status-card-title">錯誤</div>
+                            <div class="status-card-value" id="errorCount">-</div>
+                        </div>
+                        <div class="status-card">
+                            <div class="status-card-title">檢查項</div>
+                            <div class="status-card-value" id="totalCount">-</div>
+                        </div>
+                    </div>
+
+                    <div id="diagnosisContent" style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Translator Page -->
+                <div class="page" id="translator">
+                    <div class="page-title">🗣️ 桌面即時翻譯</div>
+                    <div class="alert">
+                        <span class="alert-icon">ℹ️</span>
+                        <div class="alert-content">
+                            <div class="alert-title">本工具為Python應用</div>
+                            <div>請在命令行執行: <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px;">python desktop_realtime_translator.py</code></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DevOps Page -->
+                <div class="page" id="devops">
+                    <div class="page-title">📊 DevOps儀表板</div>
+                    <div class="iframe-container">
+                        <iframe src="devops_dashboard.html"></iframe>
+                    </div>
+                </div>
+
+                <!-- Outlook Page -->
+                <div class="page" id="outlook">
+                    <div class="page-title">📧 Outlook工具</div>
+                    <div class="iframe-container">
+                        <iframe src="outlook-tool.html"></iframe>
+                    </div>
+                </div>
+
+                <!-- Stocks Page -->
+                <div class="page" id="stocks">
+                    <div class="page-title">📈 台灣股票</div>
+                    <div class="iframe-container">
+                        <iframe src="taiwan-stocks-top10.html"></iframe>
+                    </div>
+                </div>
+
+                <!-- Education Page -->
+                <div class="page" id="education">
+                    <div class="page-title">📚 教材生成器</div>
+                    <div class="iframe-container">
+                        <iframe src="教材生成器主控台.html"></iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5555/api';
+
+        // Show/hide pages
+        function showPage(pageName) {
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+
+            // Hide all nav items
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // Show selected page
+            document.getElementById(pageName).classList.add('active');
+
+            // Highlight nav item
+            event.target.closest('.nav-item').classList.add('active');
+
+            // Update title
+            const titles = {
+                'home': '主頁',
+                'diagnosis': '系統診斷',
+                'translator': '桌面即時翻譯',
+                'devops': 'DevOps儀表板',
+                'outlook': 'Outlook工具',
+                'stocks': '台灣股票',
+                'education': '教材生成器'
+            };
+            document.getElementById('pageTitle').textContent = titles[pageName] || '頁面';
+
+            // Load diagnosis data if diagnosis page
+            if (pageName === 'diagnosis') {
+                loadDiagnosisData();
+            }
+
+            // Update last update time
+            updateLastUpdate();
+        }
+
+        // Load diagnosis data
+        async function loadDiagnosisData() {
+            try {
+                const response = await fetch(`${API_BASE}/diagnose`);
+                if (!response.ok) throw new Error('API未響應');
+
+                const data = await response.json();
+                renderDiagnosisData(data);
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('diagnosisContent').innerHTML = `
+                    <div style="color: #f44336; padding: 20px; text-align: center;">
+                        <div style="font-size: 48px; margin-bottom: 12px;">⚠️</div>
+                        <div style="font-weight: 600; margin-bottom: 8px;">無法連接診斷服務</div>
+                        <div style="font-size: 13px; color: #666;">
+                            請確保診斷服務已啟動<br/>
+                            執行: python diagnosis_service.py
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Render diagnosis data
+        function renderDiagnosisData(data) {
+            const summary = data.summary;
+            document.getElementById('passedCount').textContent = summary.passed;
+            document.getElementById('warningCount').textContent = summary.warnings;
+            document.getElementById('errorCount').textContent = summary.errors;
+            document.getElementById('totalCount').textContent = summary.total_checks;
+
+            // Update system status
+            const indicator = document.querySelector('.status-indicator');
+            if (summary.errors > 0) {
+                indicator.className = 'status-indicator error';
+                document.querySelector('.system-status span:last-child').textContent = '系統異常';
+            } else if (summary.warnings > 0) {
+                indicator.className = 'status-indicator warning';
+                document.querySelector('.system-status span:last-child').textContent = '需要注意';
+            } else {
+                indicator.className = 'status-indicator';
+                document.querySelector('.system-status span:last-child').textContent = '系統正常';
+            }
+
+            // Build alerts
+            let alertsHtml = '';
+            (data.alerts || []).forEach(alert => {
+                alertsHtml += `
+                    <div class="alert" style="background: ${alert.level === 'error' ? '#ffebee' : '#fff3e0'}; border-left-color: ${alert.level === 'error' ? '#f44336' : '#FF9800'};">
+                        <span class="alert-icon">${alert.level === 'error' ? '❌' : '⚠️'}</span>
+                        <div class="alert-content">
+                            <div class="alert-title">${alert.title}</div>
+                            <div>${alert.message}</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Build tools status
+            let toolsHtml = '<div style="margin-top: 20px;"><h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">工具狀態</h3>';
+            Object.entries(data.tools).forEach(([name, info]) => {
+                const statusColor = info.status === 'ok' ? '#4CAF50' : info.status === 'warning' ? '#FF9800' : '#f44336';
+                toolsHtml += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0;">
+                        <span>${info.icon} ${name}</span>
+                        <span style="color: ${statusColor}; font-weight: 600;">
+                            ${info.status === 'ok' ? '✅' : info.status === 'warning' ? '⚠️' : '❌'}
+                        </span>
+                    </div>
+                `;
+            });
+            toolsHtml += '</div>';
+
+            document.getElementById('diagnosisContent').innerHTML = alertsHtml + toolsHtml;
+        }
+
+        // Run full diagnosis
+        async function runFullDiagnosis() {
+            loadDiagnosisData();
+        }
+
+        // Refresh diagnosis
+        async function refreshDiagnosis() {
+            const currentPage = document.querySelector('.page.active').id;
+            if (currentPage === 'diagnosis') {
+                runFullDiagnosis();
+            }
+        }
+
+        // Open in new window
+        function openInNewWindow(url) {
+            window.open(url, '_blank');
+        }
+
+        // Open external
+        function openExternal(type) {
+            if (type === 'random') {
+                window.open('Random.html', '_blank');
+            }
+        }
+
+        // Update last update time
+        function updateLastUpdate() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('zh-TW');
+            document.getElementById('lastUpdate').textContent = timeStr;
+        }
+
+        // Load welcome status
+        async function loadWelcomeStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/diagnose`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const summary = data.summary;
+                    if (summary.errors > 0) {
+                        document.getElementById('welcomeStatus').innerHTML = `
+                            <span style="color: #f44336;">⚠️ 系統檢測到 ${summary.errors} 個錯誤和 ${summary.warnings} 個警告<br/>
+                            <a href="javascript:void(0)" onclick="showPage('diagnosis')" style="color: #667eea; text-decoration: underline;">點擊查看詳情</a></span>
+                        `;
+                    } else if (summary.warnings > 0) {
+                        document.getElementById('welcomeStatus').innerHTML = `
+                            <span style="color: #FF9800;">⚠️ 系統檢測到 ${summary.warnings} 個警告<br/>
+                            <a href="javascript:void(0)" onclick="showPage('diagnosis')" style="color: #667eea; text-decoration: underline;">點擊查看詳情</a></span>
+                        `;
+                    } else {
+                        document.getElementById('welcomeStatus').innerHTML = `
+                            <span style="color: #4CAF50;">✅ 所有系統檢查都已通過，工具狀態良好</span>
+                        `;
+                    }
+                }
+            } catch (error) {
+                document.getElementById('welcomeStatus').innerHTML = `
+                    <span style="color: #999;">無法連接診斷服務<br/>
+                    <a href="javascript:void(0)" onclick="showPage('diagnosis')" style="color: #667eea; text-decoration: underline;">查看詳情</a></span>
+                `;
+            }
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            updateLastUpdate();
+            loadWelcomeStatus();
+            
+            // Auto refresh every 30 seconds
+            setInterval(updateLastUpdate, 30000);
+        });
+
+        // Fix nav item click
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                const page = this.onclick.toString().match(/'([^']+)'/)[1];
+                showPage(page);
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

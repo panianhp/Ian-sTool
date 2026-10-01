@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系統診斷面板 - Ian's Tool</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        
+        /* === Header === */
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { font-size: 28px; color: #667eea; }
+        .header-actions { display: flex; gap: 12px; }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-primary:hover { background: #5568d3; transform: translateY(-2px); }
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        .btn-secondary:hover { background: #f0f0f0; }
+
+        /* === Status Grid === */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .status-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+        }
+        .status-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card-title .icon {
+            font-size: 20px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
+        }
+        .status-item:last-child { border-bottom: none; }
+
+        .status-label { color: #666; }
+        .status-value {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        .indicator.ok { background: #4CAF50; }
+        .indicator.warning { background: #FF9800; animation: pulse-warning 2s infinite; }
+        .indicator.error { background: #f44336; animation: pulse-error 1s infinite; }
+        .indicator.checking { background: #2196F3; animation: pulse-checking 1s infinite; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        @keyframes pulse-warning {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        @keyframes pulse-error {
+            0%, 100% { opacity: 1; box-shadow: 0 0 6px #f44336; }
+            50% { opacity: 0.7; box-shadow: 0 0 12px #f44336; }
+        }
+        @keyframes pulse-checking {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .status-text {
+            font-size: 12px;
+            margin-top: 4px;
+            color: #999;
+        }
+        .status-text.error { color: #f44336; }
+        .status-text.warning { color: #FF9800; }
+        .status-text.success { color: #4CAF50; }
+
+        /* === Progress Bar === */
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .progress-fill.warning { background: linear-gradient(90deg, #FF9800, #e68900); }
+        .progress-fill.error { background: linear-gradient(90deg, #f44336, #da190b); }
+
+        /* === Detailed Section === */
+        .detailed-section {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .details-table th {
+            background: #f5f5f5;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .details-table td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .details-table tr:hover { background: #fafafa; }
+
+        /* === Summary === */
+        .summary-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+        }
+
+        .summary-item {
+            text-align: center;
+        }
+        .summary-item .value {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .summary-item .label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        /* === Loading === */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* === Alerts === */
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            font-size: 13px;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+        .alert.info {
+            background: #e3f2fd;
+            color: #1565c0;
+            border-left: 4px solid #1976d2;
+        }
+        .alert.warning {
+            background: #fff3e0;
+            color: #e65100;
+            border-left: 4px solid #f57c00;
+        }
+        .alert.error {
+            background: #ffebee;
+            color: #b71c1c;
+            border-left: 4px solid #f44336;
+        }
+
+        .timestamp {
+            text-align: center;
+            color: #999;
+            font-size: 12px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <h1>🔍 系統診斷面板</h1>
+                <p style="color: #999; font-size: 13px; margin-top: 4px;">所有工具健康狀態檢查</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="runDiagnosis()">
+                    🔄 重新診斷
+                </button>
+                <button class="btn btn-secondary" onclick="exportReport()">
+                    📥 匯出報告
+                </button>
+            </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="summary-box" id="summaryBox">
+            <div class="loading">
+                <div class="spinner"></div>
+            </div>
+        </div>
+
+        <!-- Alerts -->
+        <div id="alertsContainer"></div>
+
+        <!-- Status Cards -->
+        <div class="status-grid" id="statusGrid">
+            <div style="grid-column: 1/-1; display: flex; justify-content: center; padding: 40px;">
+                <div class="spinner" style="border-color: rgba(255, 255, 255, 0.3); border-top-color: white;"></div>
+            </div>
+        </div>
+
+        <!-- Python Environment -->
+        <div class="detailed-section">
+            <div class="section-title">🐍 Python環境</div>
+            <table class="details-table" id="pythonTable">
+                <thead>
+                    <tr>
+                        <th>項目</th>
+                        <th>狀態</th>
+                        <th>詳情</th>
+                    </tr>
+                </thead>
+                <tbody id="pythonBody">
+                    <tr><td colspan="3" style="text-align: center; color: #999;">載入中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Dependencies -->
+        <div class="detailed-section">
+            <div class="section-title">📦 依賴包檢查</div>
+            <table class="details-table" id="depsTable">
+                <thead>
+                    <tr>
+                        <th>套件名稱</th>
+                        <th>狀態</th>
+                        <th>版本</th>
+                    </tr>
+                </thead>
+                <tbody id="depsBody">
+                    <tr><td colspan="3" style="text-align: center; color: #999;">載入中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- System Resources -->
+        <div class="detailed-section">
+            <div class="section-title">💻 系統資源</div>
+            <table class="details-table" id="resourcesTable">
+                <thead>
+                    <tr>
+                        <th>資源</th>
+                        <th>使用率</th>
+                        <th>詳情</th>
+                    </tr>
+                </thead>
+                <tbody id="resourcesBody">
+                    <tr><td colspan="3" style="text-align: center; color: #999;">載入中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Audio Devices -->
+        <div class="detailed-section">
+            <div class="section-title">🎙️ 音訊設備</div>
+            <table class="details-table" id="audioTable">
+                <thead>
+                    <tr>
+                        <th>設備名稱</th>
+                        <th>類型</th>
+                        <th>狀態</th>
+                    </tr>
+                </thead>
+                <tbody id="audioBody">
+                    <tr><td colspan="3" style="text-align: center; color: #999;">載入中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Network & Services -->
+        <div class="detailed-section">
+            <div class="section-title">🌐 網路與服務</div>
+            <table class="details-table" id="servicesTable">
+                <thead>
+                    <tr>
+                        <th>服務</th>
+                        <th>狀態</th>
+                        <th>延遲 / 詳情</th>
+                    </tr>
+                </thead>
+                <tbody id="servicesBody">
+                    <tr><td colspan="3" style="text-align: center; color: #999;">載入中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Timestamp -->
+        <div class="timestamp" id="timestamp">
+            最後更新: -
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5555/api';
+
+        async function runDiagnosis() {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '⏳ 診斷中...';
+
+            try {
+                const response = await fetch(`${API_BASE}/diagnose`);
+                const data = await response.json();
+                
+                renderDiagnosis(data);
+                updateTimestamp();
+            } catch (error) {
+                showAlert('error', '連接失敗', `無法連接診斷服務: ${error.message}`);
+                console.error('Diagnosis error:', error);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔄 重新診斷';
+            }
+        }
+
+        function renderDiagnosis(data) {
+            // Summary
+            renderSummary(data.summary);
+            
+            // Alerts
+            renderAlerts(data.alerts || []);
+            
+            // Status Cards
+            renderStatusCards(data.tools);
+            
+            // Detailed Tables
+            renderPythonTable(data.python);
+            renderDepsTable(data.dependencies);
+            renderResourcesTable(data.resources);
+            renderAudioTable(data.audio_devices);
+            renderServicesTable(data.services);
+        }
+
+        function renderSummary(summary) {
+            const summaryBox = document.getElementById('summaryBox');
+            summaryBox.innerHTML = `
+                <div class="summary-item">
+                    <div class="value">${summary.total_checks}</div>
+                    <div class="label">總檢查項</div>
+                </div>
+                <div class="summary-item">
+                    <div class="value" style="color: #4CAF50;">${summary.passed}</div>
+                    <div class="label">正常</div>
+                </div>
+                <div class="summary-item">
+                    <div class="value" style="color: #FF9800;">${summary.warnings}</div>
+                    <div class="label">警告</div>
+                </div>
+                <div class="summary-item">
+                    <div class="value" style="color: #f44336;">${summary.errors}</div>
+                    <div class="label">錯誤</div>
+                </div>
+            `;
+        }
+
+        function renderAlerts(alerts) {
+            const container = document.getElementById('alertsContainer');
+            if (alerts.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            container.innerHTML = alerts.map(alert => `
+                <div class="alert ${alert.level}">
+                    <span>${alert.level === 'error' ? '❌' : alert.level === 'warning' ? '⚠️' : 'ℹ️'}</span>
+                    <div>
+                        <strong>${alert.title}</strong>
+                        <p style="margin-top: 4px; opacity: 0.9;">${alert.message}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderStatusCards(tools) {
+            const grid = document.getElementById('statusGrid');
+            grid.innerHTML = Object.entries(tools).map(([name, info]) => `
+                <div class="status-card">
+                    <div class="card-title">
+                        <span class="icon">${info.icon}</span>
+                        <span>${name}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">狀態</span>
+                        <span class="status-value">
+                            <span class="indicator ${getIndicatorClass(info.status)}"></span>
+                            ${getStatusText(info.status)}
+                        </span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">版本</span>
+                        <span class="status-value">${info.version || '-'}</span>
+                    </div>
+                    ${info.message ? `<div class="status-text ${info.message_type}">${info.message}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function renderPythonTable(python) {
+            const tbody = document.getElementById('pythonBody');
+            tbody.innerHTML = `
+                <tr>
+                    <td>Python版本</td>
+                    <td><span class="indicator ${python.installed ? 'ok' : 'error'}"></span></td>
+                    <td>${python.version}</td>
+                </tr>
+                <tr>
+                    <td>直譯器路徑</td>
+                    <td><span class="indicator ok"></span></td>
+                    <td style="word-break: break-all; font-size: 12px;">${python.executable}</td>
+                </tr>
+                <tr>
+                    <td>Pip版本</td>
+                    <td><span class="indicator ${python.pip_version ? 'ok' : 'warning'}"></span></td>
+                    <td>${python.pip_version || '未檢測'}</td>
+                </tr>
+                <tr>
+                    <td>虛擬環境</td>
+                    <td><span class="indicator ${python.venv ? 'ok' : 'warning'}"></span></td>
+                    <td>${python.venv ? '已啟用' : '未啟用 (建議啟用)'}</td>
+                </tr>
+            `;
+        }
+
+        function renderDepsTable(deps) {
+            const tbody = document.getElementById('depsBody');
+            if (deps.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #999;">無依賴資訊</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = deps.map(dep => `
+                <tr>
+                    <td><strong>${dep.name}</strong></td>
+                    <td><span class="indicator ${dep.status === 'ok' ? 'ok' : dep.status === 'warning' ? 'warning' : 'error'}"></span></td>
+                    <td>${dep.version || dep.message || '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderResourcesTable(resources) {
+            const tbody = document.getElementById('resourcesBody');
+            tbody.innerHTML = `
+                <tr>
+                    <td>CPU使用率</td>
+                    <td>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${resources.cpu}%"></div>
+                        </div>
+                    </td>
+                    <td>${resources.cpu}%</td>
+                </tr>
+                <tr>
+                    <td>記憶體使用率</td>
+                    <td>
+                        <div class="progress-bar">
+                            <div class="progress-fill ${resources.memory > 80 ? 'warning' : ''}" style="width: ${resources.memory}%"></div>
+                        </div>
+                    </td>
+                    <td>${resources.memory}% (${resources.memory_detail})</td>
+                </tr>
+                <tr>
+                    <td>磁碟空間</td>
+                    <td>
+                        <div class="progress-bar">
+                            <div class="progress-fill ${resources.disk > 80 ? 'warning' : ''}" style="width: ${resources.disk}%"></div>
+                        </div>
+                    </td>
+                    <td>${resources.disk}% (${resources.disk_detail})</td>
+                </tr>
+            `;
+        }
+
+        function renderAudioTable(devices) {
+            const tbody = document.getElementById('audioBody');
+            if (devices.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #999;">未檢測到音訊設備</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = devices.map(device => `
+                <tr>
+                    <td>${device.name}</td>
+                    <td>${device.type}</td>
+                    <td><span class="indicator ok"></span> 可用</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderServicesTable(services) {
+            const tbody = document.getElementById('servicesBody');
+            tbody.innerHTML = services.map(service => `
+                <tr>
+                    <td><strong>${service.name}</strong></td>
+                    <td><span class="indicator ${service.status === 'ok' ? 'ok' : service.status === 'warning' ? 'warning' : 'error'}"></span></td>
+                    <td>${service.latency || service.message || '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        function getIndicatorClass(status) {
+            switch(status) {
+                case 'ok': return 'ok';
+                case 'warning': return 'warning';
+                case 'error': return 'error';
+                default: return 'checking';
+            }
+        }
+
+        function getStatusText(status) {
+            switch(status) {
+                case 'ok': return '正常';
+                case 'warning': return '警告';
+                case 'error': return '錯誤';
+                default: return '檢查中';
+            }
+        }
+
+        function showAlert(level, title, message) {
+            const container = document.getElementById('alertsContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert ${level}`;
+            alert.innerHTML = `
+                <span>${level === 'error' ? '❌' : '⚠️'}</span>
+                <div>
+                    <strong>${title}</strong>
+                    <p style="margin-top: 4px; opacity: 0.9;">${message}</p>
+                </div>
+            `;
+            container.insertBefore(alert, container.firstChild);
+        }
+
+        function updateTimestamp() {
+            const now = new Date().toLocaleString('zh-TW');
+            document.getElementById('timestamp').textContent = `最後更新: ${now}`;
+        }
+
+        function exportReport() {
+            alert('報告匯出功能開發中...');
+        }
+
+        // Auto-run diagnosis on load
+        window.addEventListener('load', runDiagnosis);
+    </script>
+</body>
+</html>

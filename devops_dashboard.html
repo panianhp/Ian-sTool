@@ -1285,8 +1285,24 @@ function renderOwnerReport(owner, items) {
 }
 
 // ─── Done Summary ────────────────────────────────────────
+function getMonthlyReportSourceItems() {
+    const activeItems = getVisibleItemsFromActiveTab();
+    const activeBtn = document.querySelector('.tab-btn.active');
+    const tabName = (activeBtn?.id || 'tab-btn-all').replace('tab-btn-', '');
+    const typeMatchesTab = item => {
+        const type = String(item.type || '').toLowerCase();
+        if (tabName === 'stories') return type.includes('story');
+        if (tabName === 'bugs') return type.includes('bug');
+        return true;
+    };
+
+    const visibleDoneItems = doneStore.filter(typeMatchesTab);
+    const itemsById = new Map([...activeItems, ...visibleDoneItems].map(item => [String(item.id), item]));
+    return [...itemsById.values()];
+}
+
 function openDoneSummary() {
-    const sourceItems = getVisibleItemsFromActiveTab();
+    const sourceItems = getMonthlyReportSourceItems();
     const excludedTags = new Set(['HE_NUD', '25PI1','25PI2','25PI3','25PI4','26PI1', '26PI2', '26PI3', '26PI4']);
 
     if (sourceItems.length === 0) {
@@ -1341,7 +1357,7 @@ function openDoneSummary() {
     let html = `
         <div class="monthly-meta">
             <div><strong>Monthly Report</strong> · ${today}</div>
-            <div>Source: Current main list (visible rows)</div>
+            <div>Source: Current main list + recently closed items</div>
         </div>
         <div class="monthly-summary">
             <div class="monthly-stat"><div class="k">Total Items</div><div class="v">${sourceItems.length}</div></div>
@@ -1450,7 +1466,7 @@ function buildMonthlyOutlookHtml(cache) {
     let html = '';
     html += '<div style="font-family:Segoe UI,Arial,sans-serif;color:#1f2937;line-height:1.45;">';
     html += `<h2 style="margin:0 0 8px;color:#0f4c81;">Monthly Report - ${esc(today)}</h2>`;
-    html += '<p style="margin:0 0 12px;color:#4b5563;font-size:13px;">Source: Current main list (visible rows)</p>';
+    html += '<p style="margin:0 0 12px;color:#4b5563;font-size:13px;">Source: Current main list + recently closed items</p>';
     html += '<table style="border-collapse:collapse;margin:0 0 14px;font-size:13px;">';
     html += '<tr>';
     html += `<td style="border:1px solid #dbe2ee;padding:6px 10px;background:#f8fbff;"><b>Total</b><br>${sourceItems.length}</td>`;
@@ -1500,7 +1516,7 @@ function buildMonthlyOutlookText(cache) {
     const { today, sourceItems, tags, tagMap, doneCount, ongoingCount, newCount } = cache;
     let out = `Monthly Report - ${today}\n`;
     out += '========================================\n';
-    out += 'Source: Current main list (visible rows)\n';
+    out += 'Source: Current main list + recently closed items\n';
     out += `Total: ${sourceItems.length} | Tags: ${tags.length} | Done: ${doneCount} | Ongoing: ${ongoingCount} | New: ${newCount}\n`;
 
     for (const tag of tags) {
@@ -2112,7 +2128,12 @@ async function listOllamaModels() {
 
     try {
         const url = buildOllamaTagsUrl(aiCfg.endpoint);
-        const res = await fetch(url, { method: 'GET' });
+        const res = await fetch(url, {
+            method: 'GET',
+            mode: 'cors',
+            credentials: 'omit',
+            headers: { 'Accept': 'application/json' }
+        });
         if (!res.ok) {
             const txt = await res.text().catch(() => '');
             throw new Error(`Model list ${res.status}: ${txt.slice(0, 200)}`);
@@ -2224,7 +2245,9 @@ async function sendAiRequest(endpoint, headers, payload) {
     const res = await fetch(endpoint, {
         method: 'POST',
         headers,
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        mode: 'cors',
+        credentials: 'omit'
     });
     if (!res.ok) {
         const txt = await res.text().catch(() => '');
