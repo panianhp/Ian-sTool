@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Pulse - CNN & BBC 頭條畫面即時監控儀表板</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/opencc-js@1.0.5/dist/umd/full.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+        // 設定 Tailwind 的深色模式、字型、品牌色與自訂動畫。
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            cnn: '#CC0000',
+                            bbc: '#BB1919',
+                            dark: '#0B0F19',
+                            card: '#111827',
+                            border: '#1F2937',
+                            accent: '#3B82F6'
+                        }
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'flash': 'flashAnim 0.35s ease-out forwards',
+                    },
+                    keyframes: {
+                        flashAnim: {
+                            '0%': { opacity: '0.9', backgroundColor: '#ffffff' },
+                            '100%': { opacity: '0', backgroundColor: 'transparent' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* 統一瀏覽器捲軸的尺寸與顏色。 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(17, 24, 39, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4B5563;
+        }
+        /* 螢幕掃描線覆蓋層只提供視覺效果，不攔截滑鼠操作。 */
+        .monitor-scanline {
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 3px, 6px 100%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-[#090D16] text-gray-100 font-sans min-h-screen flex flex-col antialiased selection:bg-red-600 selection:text-white">
+
+    <!-- 手動擷取快照時短暫顯示的閃光覆蓋層。 -->
+    <div id="cameraFlash" class="fixed inset-0 pointer-events-none z-50 opacity-0 transition-opacity"></div>
+
+    <header class="border-b border-gray-800 bg-[#0E131F]/90 backdrop-blur sticky top-0 z-40 px-4 lg:px-6 py-3">
+        <div class="max-w-[1920px] mx-auto flex flex-wrap items-center justify-between gap-4">
+
+            <!-- 品牌標誌與即時狀態指示。 -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 to-rose-400 flex items-center justify-center shadow-lg shadow-red-900/30">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-lg font-bold tracking-tight text-white">NEWS PULSE<span class="text-red-500 font-mono text-sm ml-1">HQ</span></h1>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-950 text-emerald-400 border border-emerald-800/80">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping mr-1.5"></span>LIVE CAPTURE
+                        </span>
+                    </div>
+                    <p class="text-xs text-gray-400">CNN & BBC 全球頭條即時畫面監控儀表板</p>
+                </div>
+            </div>
+
+            <!-- UTC／本地時鐘與自動擷取倒數；小螢幕隱藏此區。 -->
+            <div class="hidden md:flex items-center gap-6 font-mono text-xs text-gray-400 bg-gray-900/80 px-4 py-2 rounded-xl border border-gray-800">
+                <div class="flex items-center gap-2">
+                    <span class="text-gray-500">UTC:</span>
+                    <span id="utcClock" class="text-gray-200 font-medium">--:--:--</span>
+                </div>
+                <div class="w-px h-4 bg-gray-800"></div>
+                <div class="flex items-center gap-2">
+                    <span class="text-gray-500">本地時間:</span>
+                    <span id="localClock" class="text-emerald-400 font-medium">--:--:--</span>
+                </div>
+                <div class="w-px h-4 bg-gray-800"></div>
+                <div class="flex items-center gap-2">
+                    <span class="text-gray-500">下次擷取倒數:</span>
+                    <span id="countdownTimer" class="text-amber-400 font-bold">30s</span>
+                </div>
+            </div>
+
+            <!-- 自動刷新間隔、立即擷取與快照庫存操作。 -->
+            <div class="flex items-center gap-2.5">
+                <div class="flex items-center bg-gray-900 border border-gray-800 rounded-lg p-1 text-xs">
+                    <label class="text-gray-400 px-2 font-mono">自動刷新:</label>
+                    <select id="refreshRateSelect" class="bg-transparent text-gray-200 font-medium focus:outline-none cursor-pointer pr-2">
+                        <option value="15" class="bg-gray-900">15 秒</option>
+                        <option value="30" selected class="bg-gray-900">30 秒</option>
+                        <option value="60" class="bg-gray-900">60 秒</option>
+                        <option value="0" class="bg-gray-900">關閉</option>
+                    </select>
+                </div>
+
+                <button id="btnManualCapture" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-red-600 hover:bg-red-500 active:scale-95 text-white text-xs font-semibold shadow-md shadow-red-950/50 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    立即全網快照
+                </button>
+
+                <button id="btnGalleryToggle" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium border border-gray-700 transition">
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    快照存檔 (<span id="archiveCountBadge">0</span>)
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 頁首下方的新聞跑馬燈。 -->
+    <div class="bg-gray-950/70 border-b border-gray-800/80 px-4 py-1.5 flex items-center gap-3 overflow-hidden text-xs">
+        <div class="flex items-center gap-1.5 text-red-400 font-bold whitespace-nowrap bg-red-950/60 px-2 py-0.5 rounded border border-red-900/60">
+            <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+            即時頭條快訊
+        </div>
+        <div class="relative w-full overflow-hidden whitespace-nowrap">
+            <div id="tickerContent" class="inline-block animate-[marquee_25s_linear_infinite] hover:[animation-play-state:paused] text-gray-300">
+                載入即時新聞數據中...
+            </div>
+        </div>
+    </div>
+
+    <!-- 主要內容：主題篩選與 CNN、BBC 雙欄監看面板。 -->
+    <main class="flex-1 p-4 lg:p-6 max-w-[1920px] mx-auto w-full flex flex-col gap-6">
+
+        <!-- 主題篩選按鈕與畫面狀態資訊。 -->
+        <div class="flex flex-wrap items-center justify-between gap-3 text-xs bg-gray-900/60 p-2.5 rounded-xl border border-gray-800">
+            <div class="flex items-center gap-2">
+                <span class="text-gray-400 font-medium">篩選主題:</span>
+                <div class="flex gap-1.5">
+                    <button class="topic-btn active px-2.5 py-1 rounded bg-red-600/20 text-red-300 border border-red-500/40" data-cat="all">全部焦點</button>
+                    <button class="topic-btn px-2.5 py-1 rounded bg-gray-800 text-gray-400 hover:text-gray-200" data-cat="world">國際外交</button>
+                    <button class="topic-btn px-2.5 py-1 rounded bg-gray-800 text-gray-400 hover:text-gray-200" data-cat="tech">科技商業</button>
+                    <button class="topic-btn px-2.5 py-1 rounded bg-gray-800 text-gray-400 hover:text-gray-200" data-cat="climate">氣候環境</button>
+                    <button class="topic-btn px-2.5 py-1 rounded bg-gray-800 text-gray-400 hover:text-gray-200" data-cat="sport">體育</button>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-4 text-gray-400 font-mono">
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500"></span> 畫面同步延遲: ~180ms</span>
+                <span class="hidden sm:inline">雙重畫面解析度: 1280 × 800</span>
+            </div>
+        </div>
+
+        <!-- 雙欄新聞面板：左側 CNN，右側 BBC。 -->
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+
+            <!-- CNN 面板：畫面預覽、頭條摘要與來源狀態。 -->
+            <div class="bg-gray-900/80 rounded-2xl border border-gray-800 shadow-xl overflow-hidden flex flex-col">
+                <!-- 來源名稱、最近擷取時間與面板操作。 -->
+                <div class="px-4 py-3 bg-[#131926] border-b border-gray-800 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-[#CC0000] text-white font-extrabold text-sm px-2.5 py-0.5 rounded tracking-tighter shadow">
+                            CNN
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-sm text-gray-100">CNN World Headline</span>
+                                <span class="text-[10px] font-mono text-gray-400">edition.cnn.com</span>
+                            </div>
+                            <span class="text-[11px] text-gray-400" id="cnnStatusText">最後擷取: 剛剛</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="refreshSource('cnn')" class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition" title="重新載入畫面">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        </button>
+                        <button onclick="openModalView('cnn')" class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition" title="全螢幕檢視">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+                        </button>
+                        <a href="https://edition.cnn.com" target="_blank" rel="noopener noreferrer" class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition" title="開啟來源首頁">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 網頁截圖預覽區；截圖由外部 mshots 服務產生。 -->
+                <div class="relative bg-black aspect-[16/9] w-full overflow-hidden group border-b border-gray-800">
+                    <div class="monitor-scanline absolute inset-0 z-10 opacity-30"></div>
+
+                    <!-- CNN 首頁截圖；載入失敗時改顯示備用圖。 -->
+                    <img id="cnnCaptureImg"
+                         src="https://s0.wp.com/mshots/v1/https%3A%2F%2Fedition.cnn.com?w=960"
+                         alt="CNN Live Frontpage Capture"
+                         class="w-full h-full object-cover object-top transition duration-500 ease-out group-hover:scale-[1.02]"
+                         onerror="this.onerror=null; this.src='https://placehold.co/960x540/1f2937/9ca3af?text=CNN+Headlines+Capture+Standby';">
+
+                    <!-- 疊在截圖上的擷取時間標記。 -->
+                    <div class="absolute bottom-2.5 left-2.5 z-20 bg-black/80 backdrop-blur px-2.5 py-1 rounded text-[11px] font-mono text-gray-300 border border-gray-700/60 flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                        <span id="cnnStampBadge">SNAPSHOT: LIVE FEED</span>
+                    </div>
+
+                    <!-- 滑鼠移入時顯示的放大檢視提示。 -->
+                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity z-20 flex items-center justify-center pointer-events-none">
+                        <span class="bg-gray-900/90 text-white font-mono text-xs px-3 py-1.5 rounded-full border border-gray-700">點擊卡片檢視大圖畫面</span>
+                    </div>
+                </div>
+
+                <!-- CNN 頭條摘要清單；內容由前端資料陣列渲染。 -->
+                <div class="p-4 flex-1 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-xs font-semibold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 11H9v-2h2v2zm0-4H9V5h2v4z"/></svg>
+                                即時擷取之重點頭條摘要
+                            </span>
+                            <span id="cnnFeedStatus" class="text-[11px] text-gray-500">正在連線載入即時新聞…</span>
+                        </div>
+
+                        <div id="cnnHeadlineList" class="space-y-2.5">
+                            <!-- 由 renderHeadlines() 動態產生頭條項目。 -->
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-t border-gray-800/80 flex items-center justify-between text-[11px] text-gray-500 font-mono">
+                        <span>資料來源: Google News 搜尋 CNN · Google 翻譯</span>
+                        <span class="text-emerald-400">即時新聞</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BBC 面板：結構與 CNN 面板相同，使用 BBC 來源。 -->
+            <div class="bg-gray-900/80 rounded-2xl border border-gray-800 shadow-xl overflow-hidden flex flex-col">
+                <!-- 來源名稱、最近擷取時間與面板操作。 -->
+                <div class="px-4 py-3 bg-[#131926] border-b border-gray-800 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-white text-black font-extrabold text-sm px-2.5 py-0.5 rounded tracking-wider shadow">
+                            BBC
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-sm text-gray-100">BBC News Global</span>
+                                <span class="text-[10px] font-mono text-gray-400">bbc.com/news</span>
+                            </div>
+                            <span class="text-[11px] text-gray-400" id="bbcStatusText">最後擷取: 剛剛</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="refreshSource('bbc')" class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition" title="重新載入畫面">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        </button>
+                        <button onclick="openModalView('bbc')" class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition" title="全螢幕檢視">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+                        </button>
+                        <a href="https://www.bbc.com/news" target="_blank" rel="noopener noreferrer" class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition" title="開啟來源首頁">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 網頁截圖預覽區；截圖由外部 mshots 服務產生。 -->
+                <div class="relative bg-black aspect-[16/9] w-full overflow-hidden group border-b border-gray-800">
+                    <div class="monitor-scanline absolute inset-0 z-10 opacity-30"></div>
+
+                    <!-- BBC 首頁截圖；載入失敗時改顯示備用圖。 -->
+                    <img id="bbcCaptureImg"
+                         src="https://s0.wp.com/mshots/v1/https%3A%2F%2Fwww.bbc.com%2Fnews?w=960"
+                         alt="BBC Live Frontpage Capture"
+                         class="w-full h-full object-cover object-top transition duration-500 ease-out group-hover:scale-[1.02]"
+                         onerror="this.onerror=null; this.src='https://placehold.co/960x540/1f2937/9ca3af?text=BBC+Headlines+Capture+Standby';">
+
+                    <!-- 疊在截圖上的擷取時間標記。 -->
+                    <div class="absolute bottom-2.5 left-2.5 z-20 bg-black/80 backdrop-blur px-2.5 py-1 rounded text-[11px] font-mono text-gray-300 border border-gray-700/60 flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                        <span id="bbcStampBadge">SNAPSHOT: LIVE FEED</span>
+                    </div>
+
+                    <!-- 滑鼠移入時顯示的放大檢視提示。 -->
+                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity z-20 flex items-center justify-center pointer-events-none">
+                        <span class="bg-gray-900/90 text-white font-mono text-xs px-3 py-1.5 rounded-full border border-gray-700">點擊卡片檢視大圖畫面</span>
+                    </div>
+                </div>
+
+                <!-- BBC 頭條摘要清單；內容由前端資料陣列渲染。 -->
+                <div class="p-4 flex-1 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-xs font-semibold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5 text-blue-400" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 11H9v-2h2v2zm0-4H9V5h2v4z"/></svg>
+                                即時擷取之重點頭條摘要
+                            </span>
+                            <span id="bbcFeedStatus" class="text-[11px] text-gray-500">正在連線載入即時新聞…</span>
+                        </div>
+
+                        <div id="bbcHeadlineList" class="space-y-2.5">
+                            <!-- 由 renderHeadlines() 動態產生頭條項目。 -->
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-t border-gray-800/80 flex items-center justify-between text-[11px] text-gray-500 font-mono">
+                        <span>資料來源: BBC World &amp; Sport RSS · Google 翻譯</span>
+                        <span class="text-emerald-400">即時新聞</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 保存在此裝置 IndexedDB 的快照清單，可在重新載入後恢復。 -->
+        <section id="archiveSection" class="bg-gray-900/90 rounded-2xl border border-gray-800 p-5 hidden">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        本機畫面快照歷程庫存
+                    </h3>
+                    <p class="text-xs text-gray-400">截圖圖片保存在此裝置的瀏覽器中，最多保留最近 12 筆。</p>
+                </div>
+                <button onclick="clearArchive()" class="text-xs text-gray-400 hover:text-red-400 transition">清空紀錄</button>
+            </div>
+
+            <div id="snapshotGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                <!-- renderArchive() 將快照記錄繪製於此。 -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 高解析圖片檢視對話層，亦供預覽快照庫存項目使用。 -->
+    <div id="imageModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md hidden flex flex-col items-center justify-center p-4">
+        <div class="max-w-6xl w-full bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
+            <div class="p-4 border-b border-gray-800 flex items-center justify-between bg-gray-950">
+                <div class="flex items-center gap-2">
+                    <span id="modalSourceBadge" class="px-2.5 py-0.5 rounded font-bold text-xs">SOURCE</span>
+                    <h3 id="modalTitle" class="text-sm font-semibold text-white">畫面高解析檢視</h3>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a id="modalDownloadBtn" href="#" download="headline_capture.jpg" class="text-xs px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700">下載快照</a>
+                    <button onclick="closeModalView()" class="text-gray-400 hover:text-white p-1">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="p-3 bg-black flex-1 overflow-auto flex items-center justify-center">
+                <img id="modalImg" src="" alt="Capture detail" class="max-h-full max-w-full object-contain rounded-lg">
+            </div>
+            <div class="p-3 bg-gray-950 border-t border-gray-800 text-xs font-mono text-gray-400 flex justify-between">
+                <span id="modalMetaTime">Timestamp: --</span>
+                <span>Zoom Level: 100% (Native Preview)</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // CNN 舊版 RSS 已無法穩定使用，改由 Google News 搜尋 CNN 發布的文章。
+        const NEWS_FEEDS = {
+            cnn: 'https://news.google.com/rss/search?q=site%3Aedition.cnn.com&hl=en-US&gl=US&ceid=US%3Aen',
+            bbc: [
+                'https://feeds.bbci.co.uk/news/world/rss.xml',
+                'https://feeds.bbci.co.uk/sport/rss.xml'
+            ]
+        };
+        const NEWS_CACHE_KEY = 'news-pulse-live-news-v2';
+        const NEWS_REFRESH_INTERVAL = 15 * 60 * 1000;
+        const NEWS_DATABASE = { cnn: [], bbc: [] };
+        const toTraditionalChinese = typeof OpenCC !== 'undefined'
+            ? OpenCC.Converter({ from: 'cn', to: 'tw' })
+            : value => value;
+        const feedStatus = {
+            cnn: '正在連線載入即時新聞…',
+            bbc: '正在連線載入即時新聞…'
+        };
+
+        let autoRefreshSeconds = 30;
+        let countdown = autoRefreshSeconds;
+        let countdownTimerId = null;
+        let currentFilter = 'all';
+        let newsFetchedAt = 0;
+        let newsRefreshTimerId = null;
+        let newsRequestPending = false;
+        const snapshotArchive = [];
+        const SNAPSHOT_DB_NAME = 'news-pulse-snapshots';
+        const SNAPSHOT_STORE_NAME = 'snapshots';
+        const MAX_SNAPSHOTS = 12;
+        const activeImageUrls = { cnn: null, bbc: null };
+        let archiveImageUrls = [];
+        let modalImageUrl = null;
+
+        // 每秒更新 UTC 與使用者本地時間。
+        function startClocks() {
+            function update() {
+                const now = new Date();
+                document.getElementById('utcClock').innerText = now.toUTCString().slice(17, 25);
+                document.getElementById('localClock').innerText = now.toLocaleTimeString('zh-TW', { hour12: false });
+            }
+            update();
+            setInterval(update, 1000);
+        }
+
+        // 依目前選定的間隔重設倒數；倒數歸零時自動擷取兩個來源。
+        function initCountdown() {
+            if (countdownTimerId) clearInterval(countdownTimerId);
+
+            const display = document.getElementById('countdownTimer');
+            countdown = autoRefreshSeconds;
+
+            if (autoRefreshSeconds === 0) {
+                display.innerText = '已暫停';
+                return;
+            }
+
+            display.innerText = `${countdown}s`;
+
+            countdownTimerId = setInterval(() => {
+                countdown--;
+                if (countdown <= 0) {
+                    captureAll(false);
+                    countdown = autoRefreshSeconds;
+                }
+                display.innerText = `${countdown}s`;
+            }, 1000);
+        }
+
+        function escapeHtml(value) {
+            return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+        }
+
+        function stripMarkup(value) {
+            return new DOMParser().parseFromString(String(value || ''), 'text/html').body.textContent.trim();
+        }
+
+        function formatNewsAge(dateValue) {
+            if (!dateValue) return '時間不明';
+            const date = new Date(dateValue);
+            if (Number.isNaN(date.getTime())) return '時間不明';
+            const minutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
+            if (minutes < 1) return '剛剛';
+            if (minutes < 60) return `${minutes} 分鐘前`;
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return `${hours} 小時前`;
+            return `${Math.floor(hours / 24)} 天前`;
+        }
+
+        function parseNewsDate(value) {
+            if (!value) return 0;
+            const normalized = !/[zZ]|[+-]\d{2}:?\d{2}$/.test(value)
+                ? `${value.replace(' ', 'T')}Z`
+                : value;
+            const timestamp = new Date(normalized).getTime();
+            return Number.isNaN(timestamp) ? 0 : timestamp;
+        }
+
+        function classifyNews(text) {
+            if (/sport|football|soccer|basketball|baseball|tennis|golf|cricket|rugby|boxing|athlete|athletics|olympic|championship|league|tournament|grand prix|formula one|\bF1\b|\bNBA\b|\bNFL\b|\bMLB\b|\bNHL\b|world cup|goalkeeper|coach|race|racing|player/i.test(text)) return 'sport';
+            if (/climate|environment|weather|renewable|energy|wildlife|ocean|flood|storm|emission|carbon/i.test(text)) return 'climate';
+            if (/technology|tech|artificial intelligence|\bAI\b|computer|cyber|internet|software|robot|chip| smartphone|quantum/i.test(text)) return 'tech';
+            return 'world';
+        }
+
+        async function translateNewsText(text) {
+            const endpoint = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-TW&dt=t&q=';
+            const response = await fetch(endpoint + encodeURIComponent(text));
+            if (!response.ok) throw new Error('Translation request failed');
+            const result = await response.json();
+            return toTraditionalChinese(result[0].map(segment => segment[0] || '').join(''));
+        }
+
+        async function fetchFeedItems(feedUrl) {
+            const endpoint = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`;
+            const response = await fetch(endpoint, { cache: 'no-store' });
+            if (!response.ok) throw new Error(`Feed request failed (${response.status})`);
+            const data = await response.json();
+            if (data.status !== 'ok' || !Array.isArray(data.items)) throw new Error(data.message || 'Invalid feed response');
+
+            return data.items.map(item => {
+                const title = stripMarkup(item.title).replace(/\s[-|]\sCNN(?:\s.*)?$/i, '').trim();
+                const summary = stripMarkup(item.description || item.content || '');
+                const publishedAt = parseNewsDate(item.pubDate);
+                return {
+                    cat: classifyNews(`${title} ${summary}`),
+                    title,
+                    summary,
+                    publishedAt,
+                    time: formatNewsAge(publishedAt),
+                    url: item.link
+                };
+            }).filter(item => item.title && /^https?:\/\//i.test(item.url))
+                .sort((first, second) => second.publishedAt - first.publishedAt)
+                .slice(0, 5);
+        }
+
+        async function translateArticles(articles) {
+            return Promise.all(articles.map(async item => {
+                try {
+                    const translated = await translateNewsText(`${item.title}\n${item.summary}`);
+                    const parts = translated.split('\n');
+                    return { ...item, title: parts[0] || item.title, summary: parts.slice(1).join('\n').trim() || item.summary };
+                } catch {
+                    return item;
+                }
+            }));
+        }
+
+        async function fetchNewsSource(source) {
+            const feeds = Array.isArray(NEWS_FEEDS[source]) ? NEWS_FEEDS[source] : [NEWS_FEEDS[source]];
+            const articlesByFeed = await Promise.all(feeds.map(fetchFeedItems));
+            const articles = articlesByFeed.flat()
+                .sort((first, second) => second.publishedAt - first.publishedAt);
+            const uniqueArticles = [...new Map(articles.map(item => [item.url, item])).values()];
+            return translateArticles(uniqueArticles);
+        }
+
+        function restoreNewsCache() {
+            try {
+                const cached = JSON.parse(localStorage.getItem(NEWS_CACHE_KEY) || 'null');
+                if (!cached || !cached.feeds || !Number.isFinite(cached.fetchedAt)) return;
+                for (const source of ['cnn', 'bbc']) {
+                    if (Array.isArray(cached.feeds[source])) {
+                        NEWS_DATABASE[source] = cached.feeds[source];
+                        feedStatus[source] = `快取資料 · ${formatNewsAge(cached.fetchedAt)}更新`;
+                    }
+                }
+                newsFetchedAt = cached.fetchedAt;
+            } catch {
+                localStorage.removeItem(NEWS_CACHE_KEY);
+            }
+        }
+
+        async function refreshLiveNews(force = false) {
+            if (newsRequestPending || (!force && Date.now() - newsFetchedAt < NEWS_REFRESH_INTERVAL)) return;
+            newsRequestPending = true;
+            for (const source of ['cnn', 'bbc']) feedStatus[source] = '正在更新即時新聞…';
+            renderHeadlines();
+
+            const results = await Promise.allSettled(['cnn', 'bbc'].map(source => fetchNewsSource(source)));
+            results.forEach((result, index) => {
+                const source = ['cnn', 'bbc'][index];
+                if (result.status === 'fulfilled') {
+                    NEWS_DATABASE[source] = result.value;
+                    feedStatus[source] = `即時更新 · ${new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}`;
+                } else {
+                    feedStatus[source] = NEWS_DATABASE[source].length ? '更新失敗，顯示上次資料' : '載入失敗，請稍後重試';
+                }
+            });
+
+            newsFetchedAt = Date.now();
+            try {
+                localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify({ fetchedAt: newsFetchedAt, feeds: NEWS_DATABASE }));
+            } catch { /* 快取失敗不影響即時資料顯示。 */ }
+            newsRequestPending = false;
+            renderHeadlines();
+        }
+
+        function scheduleNewsRefresh() {
+            clearTimeout(newsRefreshTimerId);
+            const delay = Math.max(1000, NEWS_REFRESH_INTERVAL - (Date.now() - newsFetchedAt));
+            newsRefreshTimerId = setTimeout(async () => {
+                await refreshLiveNews(true);
+                scheduleNewsRefresh();
+            }, delay);
+        }
+
+        // 依主題篩選即時新聞，繪製來源清單與頁首跑馬燈。
+        function renderHeadlines() {
+            const categoryLabels = { world: '國際', tech: '科技', climate: '環境', sport: '體育' };
+            const renderSource = (source, colorClass) => {
+                const container = document.getElementById(`${source}HeadlineList`);
+                const items = NEWS_DATABASE[source].filter(item => currentFilter === 'all' || item.cat === currentFilter).slice(0, 5);
+                document.getElementById(`${source}FeedStatus`).textContent = feedStatus[source];
+                if (!items.length) {
+                    container.innerHTML = `<p class="text-xs text-gray-500 py-2">${NEWS_DATABASE[source].length ? '此主題目前沒有新聞。' : '尚無即時新聞資料。'}</p>`;
+                    return;
+                }
+                container.innerHTML = items.map(item => `
+                    <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="block p-2.5 rounded-xl bg-gray-950/60 hover:bg-gray-800/90 border border-gray-800/80 transition group">
+                        <div class="flex items-center justify-between text-[11px] mb-1">
+                            <span class="${colorClass} font-medium uppercase tracking-wide">[${categoryLabels[item.cat] || '國際'}]</span>
+                            <span class="text-gray-500 font-mono">${escapeHtml(item.time)}</span>
+                        </div>
+                        <h4 class="text-xs font-semibold text-gray-200 group-hover:${colorClass.replace('text-', 'text-')} transition leading-snug line-clamp-1">${escapeHtml(item.title)}</h4>
+                        <p class="text-[11px] text-gray-400 mt-1 line-clamp-2">${escapeHtml(item.summary)}</p>
+                    </a>
+                `).join('');
+            };
+
+            renderSource('cnn', 'text-red-400');
+            renderSource('bbc', 'text-blue-400');
+
+            const tickerList = [...NEWS_DATABASE.cnn, ...NEWS_DATABASE.bbc];
+            document.getElementById('tickerContent').innerHTML = tickerList.length
+                ? tickerList.map(item => `• <span class="text-white font-medium">${escapeHtml(item.title)}</span> (${escapeHtml(item.time)})`).join(' &nbsp;&nbsp;&nbsp;&nbsp; ')
+                : '目前沒有可顯示的即時新聞。';
+        }
+
+        function openSnapshotDatabase() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(SNAPSHOT_DB_NAME, 1);
+                request.onupgradeneeded = () => request.result.createObjectStore(SNAPSHOT_STORE_NAME, { keyPath: 'id' });
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function loadSnapshotArchive() {
+            try {
+                const database = await openSnapshotDatabase();
+                await new Promise((resolve, reject) => {
+                    const transaction = database.transaction(SNAPSHOT_STORE_NAME, 'readonly');
+                    const request = transaction.objectStore(SNAPSHOT_STORE_NAME).getAll();
+                    request.onsuccess = () => {
+                        const saved = request.result.sort((first, second) => second.capturedAt - first.capturedAt).slice(0, MAX_SNAPSHOTS);
+                        snapshotArchive.splice(0, snapshotArchive.length, ...saved);
+                        renderArchive();
+                    };
+                    transaction.oncomplete = resolve;
+                    transaction.onerror = () => reject(transaction.error);
+                });
+                database.close();
+            } catch (error) {
+                console.error('無法讀取已保存的快照', error);
+            }
+        }
+
+        async function saveSnapshot(snapshot, removedSnapshots) {
+            const database = await openSnapshotDatabase();
+            await new Promise((resolve, reject) => {
+                const transaction = database.transaction(SNAPSHOT_STORE_NAME, 'readwrite');
+                const store = transaction.objectStore(SNAPSHOT_STORE_NAME);
+                store.put(snapshot);
+                removedSnapshots.forEach(item => store.delete(item.id));
+                transaction.oncomplete = resolve;
+                transaction.onerror = () => reject(transaction.error);
+            });
+            database.close();
+        }
+
+        async function clearSavedSnapshots() {
+            try {
+                const database = await openSnapshotDatabase();
+                await new Promise((resolve, reject) => {
+                    const transaction = database.transaction(SNAPSHOT_STORE_NAME, 'readwrite');
+                    transaction.objectStore(SNAPSHOT_STORE_NAME).clear();
+                    transaction.oncomplete = resolve;
+                    transaction.onerror = () => reject(transaction.error);
+                });
+                database.close();
+            } catch (error) {
+                console.error('無法清除已保存的快照', error);
+            }
+        }
+
+        // 抓取並保存截圖圖片內容；快照不再依賴會變動或失效的外部網址。
+        async function refreshSource(source) {
+            const nowTimeStr = new Date().toLocaleTimeString('zh-TW', { hour12: false });
+            const image = document.getElementById(`${source}CaptureImg`);
+            const status = document.getElementById(`${source}StatusText`);
+            const stamp = document.getElementById(`${source}StampBadge`);
+            const pageUrl = source === 'cnn' ? 'https%3A%2F%2Fedition.cnn.com' : 'https%3A%2F%2Fwww.bbc.com%2Fnews';
+            const screenshotUrl = `https://s0.wp.com/mshots/v1/${pageUrl}?w=960`;
+
+            status.innerText = '正在擷取…';
+            try {
+                const response = await fetch(screenshotUrl, { mode: 'cors', cache: 'no-store' });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const blob = await response.blob();
+                if (!blob.type.startsWith('image/') || blob.size < 1000) throw new Error('截圖服務未回傳有效圖片');
+
+                const objectUrl = URL.createObjectURL(blob);
+                if (activeImageUrls[source]) URL.revokeObjectURL(activeImageUrls[source]);
+                activeImageUrls[source] = objectUrl;
+                image.src = objectUrl;
+                status.innerText = `最後擷取: ${nowTimeStr}`;
+                stamp.innerText = `SNAPSHOT: ${nowTimeStr}`;
+                return blob;
+            } catch (error) {
+                status.innerText = '擷取失敗，保留上一張畫面';
+                console.error(`${source.toUpperCase()} 截圖失敗`, error);
+                return null;
+            }
+        }
+
+        // 顯示短暫閃光，提示使用者已手動執行擷取。
+        function triggerFlashEffect() {
+            const flash = document.getElementById('cameraFlash');
+            flash.classList.remove('opacity-0');
+            flash.classList.add('animate-flash');
+            setTimeout(() => {
+                flash.classList.remove('animate-flash');
+                flash.classList.add('opacity-0');
+            }, 350);
+        }
+
+        // 等兩張圖片都成功取得後，將圖片資料持久保存至 IndexedDB。
+        async function captureAll(isManual = false) {
+            if (isManual) {
+                triggerFlashEffect();
+            }
+            refreshLiveNews();
+            const [cnnBlob, bbcBlob] = await Promise.all([refreshSource('cnn'), refreshSource('bbc')]);
+            if (!cnnBlob || !bbcBlob) return;
+
+            const now = new Date();
+            const snapId = `SNAP-${now.getTime()}`;
+            const timeStr = now.toLocaleTimeString('zh-TW', { hour12: false });
+            const snapshot = { id: snapId, time: timeStr, capturedAt: now.getTime(), cnnBlob, bbcBlob };
+
+            snapshotArchive.unshift(snapshot);
+            const removedSnapshots = snapshotArchive.splice(MAX_SNAPSHOTS);
+            renderArchive();
+            try {
+                await saveSnapshot(snapshot, removedSnapshots);
+            } catch (error) {
+                console.error('快照無法保存到此裝置', error);
+            }
+        }
+
+        // 更新庫存數量，並將快照項目繪製成縮圖卡片。
+        function renderArchive() {
+            const badge = document.getElementById('archiveCountBadge');
+            badge.innerText = snapshotArchive.length;
+
+            const grid = document.getElementById('snapshotGrid');
+            archiveImageUrls.forEach(URL.revokeObjectURL);
+            archiveImageUrls = [];
+            grid.innerHTML = snapshotArchive.map((snap, idx) => `
+                <div class="bg-gray-950 p-2 rounded-xl border border-gray-800 text-xs flex flex-col gap-1.5 hover:border-gray-700 transition">
+                    <div class="flex items-center justify-between text-[10px] font-mono text-gray-400">
+                        <span class="text-amber-400 font-bold">${snap.id}</span>
+                        <span>${snap.time}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1 rounded overflow-hidden">
+                        <img src="${createArchiveImageUrl(snap.cnnBlob)}" class="w-full h-12 object-cover object-top bg-black rounded" title="CNN Snap">
+                        <img src="${createArchiveImageUrl(snap.bbcBlob)}" class="w-full h-12 object-cover object-top bg-black rounded" title="BBC Snap">
+                    </div>
+                    <button onclick="previewArchiveItem(${idx})" class="mt-1 w-full py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 text-[10px] text-center font-medium">檢視細節</button>
+                </div>
+            `).join('');
+        }
+
+        function createArchiveImageUrl(blob) {
+            const url = URL.createObjectURL(blob);
+            archiveImageUrls.push(url);
+            return url;
+        }
+
+        // 清除目前記憶體中的快照記錄，並同步更新畫面。
+        function clearArchive() {
+            snapshotArchive.length = 0;
+            renderArchive();
+            clearSavedSnapshots();
+        }
+
+        // 開啟指定媒體的放大檢視，並設定下載連結與擷取時間。
+        function openModalView(source) {
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImg');
+            const badge = document.getElementById('modalSourceBadge');
+            const title = document.getElementById('modalTitle');
+            const downloadBtn = document.getElementById('modalDownloadBtn');
+            const metaTime = document.getElementById('modalMetaTime');
+
+            const nowStr = new Date().toLocaleString();
+            metaTime.innerText = `擷取時間戳記: ${nowStr}`;
+
+            if (source === 'cnn') {
+                const src = document.getElementById('cnnCaptureImg').src;
+                modalImg.src = src;
+                badge.className = 'px-2.5 py-0.5 rounded font-bold text-xs bg-red-600 text-white';
+                badge.innerText = 'CNN WORLD';
+                title.innerText = 'CNN 即時畫面完整快照';
+                downloadBtn.href = src;
+            } else {
+                const src = document.getElementById('bbcCaptureImg').src;
+                modalImg.src = src;
+                badge.className = 'px-2.5 py-0.5 rounded font-bold text-xs bg-white text-black';
+                badge.innerText = 'BBC NEWS';
+                title.innerText = 'BBC 即時畫面完整快照';
+                downloadBtn.href = src;
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        // 從快照庫存開啟已保存的 CNN 圖片，並提供圖片檔下載。
+        function previewArchiveItem(index) {
+            const snap = snapshotArchive[index];
+            if (!snap) return;
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImg');
+            const badge = document.getElementById('modalSourceBadge');
+            const title = document.getElementById('modalTitle');
+            const downloadBtn = document.getElementById('modalDownloadBtn');
+            const metaTime = document.getElementById('modalMetaTime');
+
+            badge.className = 'px-2.5 py-0.5 rounded font-bold text-xs bg-amber-500 text-black';
+            badge.innerText = snap.id;
+            title.innerText = `歷史快照存檔 [${snap.time}]`;
+            if (modalImageUrl) URL.revokeObjectURL(modalImageUrl);
+            modalImageUrl = URL.createObjectURL(snap.cnnBlob);
+            modalImg.src = modalImageUrl;
+            downloadBtn.href = modalImageUrl;
+            downloadBtn.download = `${snap.id}-cnn.jpg`;
+            metaTime.innerText = `儲存時間: ${snap.time}`;
+
+            modal.classList.remove('hidden');
+        }
+
+        // 關閉放大檢視層。
+        function closeModalView() {
+            document.getElementById('imageModal').classList.add('hidden');
+            if (modalImageUrl) {
+                URL.revokeObjectURL(modalImageUrl);
+                modalImageUrl = null;
+            }
+        }
+
+        // DOM 載入後啟動時鐘、頭條、倒數，並綁定所有操作事件。
+        document.addEventListener('DOMContentLoaded', () => {
+            startClocks();
+            restoreNewsCache();
+            renderHeadlines();
+            refreshLiveNews().finally(scheduleNewsRefresh);
+            initCountdown();
+
+            // 先還原本機快照，再擷取新畫面加入庫存。
+            loadSnapshotArchive().finally(() => captureAll(false));
+
+            // 手動擷取後將倒數重設為目前的刷新間隔。
+            document.getElementById('btnManualCapture').addEventListener('click', () => {
+                captureAll(true);
+                countdown = autoRefreshSeconds;
+            });
+
+            // 切換快照庫存顯示狀態；展開時平滑捲動至庫存區。
+            document.getElementById('btnGalleryToggle').addEventListener('click', () => {
+                const archive = document.getElementById('archiveSection');
+                archive.classList.toggle('hidden');
+                if (!archive.classList.contains('hidden')) {
+                    archive.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+
+            // 刷新間隔變更時，套用新設定並重新啟動倒數。
+            document.getElementById('refreshRateSelect').addEventListener('change', (e) => {
+                autoRefreshSeconds = parseInt(e.target.value, 10);
+                initCountdown();
+            });
+
+            // 主題按鈕切換時更新選取樣式與頭條篩選條件。
+            document.querySelectorAll('.topic-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.topic-btn').forEach(b => {
+                        b.classList.remove('bg-red-600/20', 'text-red-300', 'border', 'border-red-500/40');
+                        b.classList.add('bg-gray-800', 'text-gray-400');
+                    });
+                    btn.classList.add('bg-red-600/20', 'text-red-300', 'border', 'border-red-500/40');
+                    btn.classList.remove('bg-gray-800', 'text-gray-400');
+
+                    currentFilter = btn.getAttribute('data-cat');
+                    renderHeadlines();
+                });
+            });
+
+            // 按下 Escape 關閉放大檢視層。
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeModalView();
+            });
+        });
+    </script>
+</body>
+</html>
