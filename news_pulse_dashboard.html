@@ -72,6 +72,10 @@
     <!-- 手動擷取快照時短暫顯示的閃光覆蓋層。 -->
     <div id="cameraFlash" class="fixed inset-0 pointer-events-none z-50 opacity-0 transition-opacity"></div>
 
+    <div class="w-full bg-[#171B42]">
+        <img src="NEWS_PULSE.jpg" alt="NEWS PULSE 即時掌握全球焦點" class="block w-full max-w-[1200px] h-auto mx-auto">
+    </div>
+
     <header class="border-b border-gray-800 bg-[#0E131F]/90 backdrop-blur sticky top-0 z-40 px-4 lg:px-6 py-3">
         <div class="max-w-[1920px] mx-auto flex flex-wrap items-center justify-between gap-4">
 
@@ -175,6 +179,19 @@
                 <span class="hidden sm:inline">雙重畫面解析度: 1280 × 800</span>
             </div>
         </div>
+
+        <section class="bg-gray-900/80 rounded-xl border border-gray-800 p-4 lg:p-5" aria-labelledby="vocabularyHeading">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                <div>
+                    <h2 id="vocabularyHeading" class="text-sm font-bold text-white">新聞 B2+ 單字</h2>
+                    <p class="text-xs text-gray-400 mt-1">從目前 CNN 與 BBC 英文標題、摘要擷取，最多 5 個</p>
+                </div>
+                <span id="vocabularyStatus" class="text-xs text-gray-500" aria-live="polite">等待新聞載入…</span>
+            </div>
+            <div id="vocabularyList" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-2.5">
+                <p class="text-xs text-gray-500">正在尋找新聞中的 B2 以上單字…</p>
+            </div>
+        </section>
 
         <!-- 雙欄新聞面板：左側 CNN，右側 BBC。 -->
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -387,9 +404,52 @@
                 'https://feeds.bbci.co.uk/sport/rss.xml'
             ]
         };
-        const NEWS_CACHE_KEY = 'news-pulse-live-news-v2';
+        const NEWS_CACHE_KEY = 'news-pulse-live-news-v3';
         const NEWS_REFRESH_INTERVAL = 15 * 60 * 1000;
         const NEWS_DATABASE = { cnn: [], bbc: [] };
+        const ADVANCED_VOCABULARY = [
+            { word: 'abandon', level: 'B2', meaning: '放棄；遺棄', forms: ['abandon', 'abandons', 'abandoned', 'abandoning'] },
+            { word: 'acknowledge', level: 'B2', meaning: '承認；確認', forms: ['acknowledge', 'acknowledges', 'acknowledged', 'acknowledging'] },
+            { word: 'acquire', level: 'B2', meaning: '取得；習得', forms: ['acquire', 'acquires', 'acquired', 'acquiring'] },
+            { word: 'amid', level: 'B2', meaning: '在…之中', forms: ['amid'] },
+            { word: 'anticipate', level: 'B2', meaning: '預期；預料', forms: ['anticipate', 'anticipates', 'anticipated', 'anticipating'] },
+            { word: 'apparent', level: 'B2', meaning: '明顯的；表面上的', forms: ['apparent', 'apparently'] },
+            { word: 'assess', level: 'B2', meaning: '評估；判定', forms: ['assess', 'assesses', 'assessed', 'assessing', 'assessment'] },
+            { word: 'assumption', level: 'B2', meaning: '假設；臆測', forms: ['assumption', 'assumptions'] },
+            { word: 'authority', level: 'B2', meaning: '當局；權威', forms: ['authority', 'authorities'] },
+            { word: 'collapse', level: 'B2', meaning: '倒塌；崩潰', forms: ['collapse', 'collapses', 'collapsed', 'collapsing'] },
+            { word: 'compelling', level: 'B2', meaning: '令人信服的；引人注目的', forms: ['compelling', 'compel', 'compels', 'compelled'] },
+            { word: 'controversy', level: 'B2', meaning: '爭議', forms: ['controversy', 'controversies'] },
+            { word: 'crucial', level: 'B2', meaning: '至關重要的', forms: ['crucial'] },
+            { word: 'decline', level: 'B2', meaning: '下降；衰退；婉拒', forms: ['decline', 'declines', 'declined', 'declining'] },
+            { word: 'devastating', level: 'B2', meaning: '毀滅性的；令人震驚的', forms: ['devastating', 'devastate', 'devastates', 'devastated'] },
+            { word: 'diminish', level: 'B2', meaning: '減少；削弱', forms: ['diminish', 'diminishes', 'diminished', 'diminishing'] },
+            { word: 'emerge', level: 'B2', meaning: '浮現；出現', forms: ['emerge', 'emerges', 'emerged', 'emerging'] },
+            { word: 'encounter', level: 'B2', meaning: '遭遇；碰到', forms: ['encounter', 'encounters', 'encountered', 'encountering'] },
+            { word: 'evidence', level: 'B2', meaning: '證據；跡象', forms: ['evidence'] },
+            { word: 'inevitable', level: 'B2', meaning: '不可避免的', forms: ['inevitable', 'inevitably'] },
+            { word: 'legislation', level: 'B2', meaning: '法律；立法', forms: ['legislation'] },
+            { word: 'notable', level: 'B2', meaning: '值得注意的；顯著的', forms: ['notable', 'notably'] },
+            { word: 'ongoing', level: 'B2', meaning: '持續進行中的', forms: ['ongoing'] },
+            { word: 'outcome', level: 'B2', meaning: '結果；後果', forms: ['outcome', 'outcomes'] },
+            { word: 'perspective', level: 'B2', meaning: '觀點；角度', forms: ['perspective', 'perspectives'] },
+            { word: 'potential', level: 'B2', meaning: '潛力；潛在的', forms: ['potential'] },
+            { word: 'priority', level: 'B2', meaning: '優先事項', forms: ['priority', 'priorities'] },
+            { word: 'significant', level: 'B2', meaning: '重要的；顯著的', forms: ['significant', 'significantly'] },
+            { word: 'sustain', level: 'B2', meaning: '維持；支撐', forms: ['sustain', 'sustains', 'sustained', 'sustaining'] },
+            { word: 'undermine', level: 'B2', meaning: '損害；逐漸削弱', forms: ['undermine', 'undermines', 'undermined', 'undermining'] },
+            { word: 'widespread', level: 'B2', meaning: '廣泛的；普遍的', forms: ['widespread'] },
+            { word: 'vulnerable', level: 'B2', meaning: '脆弱的；易受傷害的', forms: ['vulnerable'] },
+            { word: 'allege', level: 'C1', meaning: '聲稱；指控', forms: ['allege', 'alleges', 'alleged', 'allegedly', 'alleging'] },
+            { word: 'amidst', level: 'C1', meaning: '在…之中', forms: ['amidst'] },
+            { word: 'concede', level: 'C1', meaning: '承認；讓步', forms: ['concede', 'concedes', 'conceded', 'conceding'] },
+            { word: 'consecutive', level: 'C1', meaning: '連續的', forms: ['consecutive'] },
+            { word: 'disclose', level: 'C1', meaning: '揭露；透露', forms: ['disclose', 'discloses', 'disclosed', 'disclosing'] },
+            { word: 'escalate', level: 'C1', meaning: '升高；惡化', forms: ['escalate', 'escalates', 'escalated', 'escalating'] },
+            { word: 'surge', level: 'C1', meaning: '激增；湧現', forms: ['surge', 'surges', 'surged', 'surging'] },
+            { word: 'albeit', level: 'C2', meaning: '儘管；雖然', forms: ['albeit'] },
+            { word: 'scrutiny', level: 'C2', meaning: '仔細審查；監督', forms: ['scrutiny'] }
+        ];
         const toTraditionalChinese = typeof OpenCC !== 'undefined'
             ? OpenCC.Converter({ from: 'cn', to: 'tw' })
             : value => value;
@@ -507,6 +567,8 @@
                     cat: classifyNews(`${title} ${summary}`),
                     title,
                     summary,
+                    originalTitle: title,
+                    originalSummary: summary,
                     publishedAt,
                     time: formatNewsAge(publishedAt),
                     url: item.link
@@ -617,6 +679,43 @@
             document.getElementById('tickerContent').innerHTML = tickerList.length
                 ? tickerList.map(item => `• <span class="text-white font-medium">${escapeHtml(item.title)}</span> (${escapeHtml(item.time)})`).join(' &nbsp;&nbsp;&nbsp;&nbsp; ')
                 : '目前沒有可顯示的即時新聞。';
+
+            renderVocabulary();
+        }
+
+        function renderVocabulary() {
+            const container = document.getElementById('vocabularyList');
+            const status = document.getElementById('vocabularyStatus');
+            const articles = ['cnn', 'bbc'].flatMap(source => NEWS_DATABASE[source].map(article => ({
+                ...article,
+                sourceName: source.toUpperCase(),
+                englishText: `${article.originalTitle || ''} ${article.originalSummary || ''}`
+            })));
+            const matches = ADVANCED_VOCABULARY.map(entry => {
+                const forms = entry.forms.map(form => form.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+                const expression = new RegExp(`\\b(?:${forms})\\b`, 'i');
+                const article = articles.find(item => expression.test(item.englishText));
+                return article ? { ...entry, article } : null;
+            }).filter(Boolean).slice(0, 5);
+
+            if (!matches.length) {
+                const loading = articles.length === 0;
+                status.textContent = loading ? '等待新聞載入' : '目前新聞沒有符合詞彙';
+                container.innerHTML = `<p class="text-xs text-gray-500">${loading ? '新聞載入後會自動擷取單字。' : '目前新聞中沒有找到詞庫內的 B2 以上單字。'}</p>`;
+                return;
+            }
+
+            status.textContent = `找到 ${matches.length} 個`;
+            container.innerHTML = matches.map(entry => `
+                <a href="${escapeHtml(entry.article.url)}" target="_blank" rel="noopener noreferrer" class="block min-w-0 p-3 rounded-lg bg-gray-950/70 border border-gray-800 hover:border-gray-600 transition">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-sm font-semibold text-white">${escapeHtml(entry.word)}</span>
+                        <span class="shrink-0 text-[10px] font-mono text-amber-300 border border-amber-900/70 rounded px-1.5 py-0.5">${entry.level}+</span>
+                    </div>
+                    <p class="mt-1 text-xs text-gray-300">${escapeHtml(entry.meaning)}</p>
+                    <p class="mt-2 text-[10px] text-gray-500 truncate">${entry.article.sourceName} · ${escapeHtml(entry.article.originalTitle || entry.article.title)}</p>
+                </a>
+            `).join('');
         }
 
         function openSnapshotDatabase() {
