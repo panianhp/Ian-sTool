@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#183b36">
+    <title>Work Analysis Studio</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --ink: #183b36;
+            --muted: #687773;
+            --line: #dce5dd;
+            --paper: #f5f7f0;
+            --white: #fffefa;
+            --lime: #d8f36a;
+            --coral: #e66a4e;
+            --blue: #5183a0;
+            --shadow: 0 12px 34px rgba(24, 59, 54, .08);
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--paper);
+            color: var(--ink);
+            font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
+        }
+        button, input, select, textarea { font: inherit; }
+        button { cursor: pointer; }
+        .topbar {
+            min-height: 66px;
+            padding: 0 clamp(18px, 4vw, 56px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            color: #f8faee;
+            background: var(--ink);
+        }
+        .brand { display: flex; align-items: center; gap: 11px; font-weight: 700; }
+        .brand-mark { display: grid; place-items: center; width: 30px; height: 30px; background: var(--lime); color: var(--ink); border-radius: 9px 9px 9px 2px; font-size: 17px; }
+        .top-meta { color: #c4d3c8; font-size: 12px; }
+        main { width: min(1220px, 100%); margin: 0 auto; padding: 42px clamp(18px, 4vw, 56px) 64px; }
+        .intro { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
+        .eyebrow { margin: 0 0 9px; color: #58776d; font-size: 11px; font-weight: 700; letter-spacing: 1.4px; }
+        h1 { margin: 0; font-family: Georgia, "Microsoft JhengHei", serif; font-size: clamp(30px, 5vw, 48px); line-height: 1.12; font-weight: 600; }
+        .intro-copy { max-width: 520px; margin: 12px 0 0; color: var(--muted); font-size: 14px; line-height: 1.7; }
+        .intro-actions { display: flex; flex-shrink: 0; gap: 9px; }
+        .button { min-height: 40px; border: 1px solid var(--line); border-radius: 5px; padding: 0 14px; color: var(--ink); background: var(--white); font-size: 13px; font-weight: 650; transition: transform .18s, background .18s; }
+        .button:hover { transform: translateY(-1px); background: #eef3e8; }
+        .button-primary { border-color: var(--ink); background: var(--ink); color: white; }
+        .button-primary:hover { background: #27544b; }
+        .button-icon { width: 38px; padding: 0; font-size: 18px; }
+        .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-bottom: 24px; }
+        .metric { padding: 19px 20px 18px 0; }
+        .metric + .metric { padding-left: 20px; border-left: 1px solid var(--line); }
+        .metric-label { color: var(--muted); font-size: 12px; }
+        .metric-value { display: flex; align-items: baseline; gap: 6px; margin-top: 7px; font-family: Georgia, serif; font-size: 32px; font-weight: 600; }
+        .metric-unit { color: var(--muted); font: 12px "Segoe UI", sans-serif; }
+        .capacity { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 18px; padding: 15px 18px; margin-bottom: 24px; border: 1px solid var(--line); border-radius: 6px; background: #edf2e8; }
+        .capacity-head { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 9px; font-size: 12px; }
+        .capacity-head strong { font-size: 13px; }
+        .capacity-track { height: 8px; overflow: hidden; border-radius: 8px; background: #d7e0d5; }
+        .capacity-fill { height: 100%; width: 0; border-radius: inherit; background: #76a77d; transition: width .35s ease; }
+        .capacity-fill.over { background: var(--coral); }
+        .capacity-setting { display: flex; align-items: center; gap: 7px; color: var(--muted); white-space: nowrap; font-size: 12px; }
+        .capacity-setting input { width: 58px; padding: 6px; border: 1px solid #cbd7cc; border-radius: 4px; background: var(--white); color: var(--ink); text-align: right; }
+        .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 22px; align-items: start; }
+        .work-panel, .insight-panel { border: 1px solid var(--line); border-radius: 7px; background: var(--white); box-shadow: var(--shadow); }
+        .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 19px 20px; border-bottom: 1px solid var(--line); }
+        .panel-head h2 { margin: 0; font-size: 16px; }
+        .panel-head p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+        .filters { display: flex; gap: 8px; padding: 13px 20px; border-bottom: 1px solid var(--line); }
+        .search { flex: 1; min-width: 80px; }
+        .search input, .filters select { width: 100%; height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 4px; background: white; color: var(--ink); font-size: 12px; }
+        .filters select { width: 130px; }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { padding: 11px 14px; color: var(--muted); background: #f8faf5; font-size: 10px; font-weight: 700; white-space: nowrap; }
+        td { padding: 14px; border-top: 1px solid #edf1eb; font-size: 12px; vertical-align: middle; }
+        tbody tr { animation: arrive .25s ease both; }
+        @keyframes arrive { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .task-name { font-size: 13px; font-weight: 700; }
+        .task-note { max-width: 240px; margin-top: 4px; overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
+        .tag { display: inline-block; padding: 4px 7px; border-radius: 3px; background: #e8f0e5; color: #486b50; font-size: 10px; white-space: nowrap; }
+        .tag.admin { background: #f8e9df; color: #94583e; }
+        .tag.meeting { background: #e4edf1; color: #44687a; }
+        .tag.project { background: #f0eed8; color: #716b31; }
+        .priority { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+        .priority-dot { width: 7px; height: 7px; border-radius: 50%; background: #78a77d; }
+        .priority-dot.high { background: var(--coral); }
+        .priority-dot.medium { background: #d5a741; }
+        .row-actions { display: flex; justify-content: flex-end; gap: 4px; }
+        .icon-button { width: 30px; height: 30px; border: 0; border-radius: 4px; color: #5b716b; background: transparent; font-size: 16px; }
+        .icon-button:hover { background: #eef3e8; color: var(--ink); }
+        .icon-button.delete:hover { background: #fff0eb; color: #b84d34; }
+        .empty { padding: 48px 18px; text-align: center; color: var(--muted); font-size: 13px; }
+        .insight-panel { overflow: hidden; }
+        .insight-top { padding: 20px; background: var(--lime); }
+        .insight-top .eyebrow { margin-bottom: 8px; color: #53632b; }
+        .insight-top h2 { margin: 0; font-family: Georgia, "Microsoft JhengHei", serif; font-size: 22px; line-height: 1.35; font-weight: 600; }
+        .insight-body { padding: 18px 20px 20px; }
+        .insight-body h3 { margin: 0 0 13px; font-size: 12px; }
+        .category-row { margin-bottom: 14px; }
+        .category-meta { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; font-size: 11px; }
+        .category-meta span:last-child { color: var(--muted); }
+        .category-track { height: 5px; border-radius: 6px; background: #ebefea; }
+        .category-fill { height: 100%; border-radius: inherit; background: #59877b; }
+        .recommendation { padding: 13px; margin-top: 20px; border-left: 3px solid var(--coral); background: #fbf2ed; color: #604e45; font-size: 12px; line-height: 1.65; }
+        .recommendation strong { display: block; margin-bottom: 4px; color: #8a5039; }
+        .privacy-note { display: flex; gap: 8px; margin: 17px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+        dialog { width: min(520px, calc(100% - 28px)); max-height: min(90vh, 780px); padding: 0; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--white); box-shadow: 0 24px 80px rgba(10, 31, 27, .25); }
+        dialog::backdrop { background: rgba(17, 39, 34, .48); backdrop-filter: blur(2px); }
+        .dialog-head { display: flex; justify-content: space-between; align-items: center; padding: 17px 20px; border-bottom: 1px solid var(--line); }
+        .dialog-head h2 { margin: 0; font-size: 16px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 20px; }
+        .field { display: flex; flex-direction: column; gap: 6px; }
+        .field.full { grid-column: 1 / -1; }
+        .field label { color: #53645e; font-size: 11px; font-weight: 650; }
+        .field input, .field select, .field textarea { width: 100%; min-height: 39px; padding: 9px 10px; border: 1px solid #d4dfd5; border-radius: 4px; outline: none; color: var(--ink); background: white; font-size: 13px; }
+        .field textarea { min-height: 76px; resize: vertical; }
+        .field input:focus, .field select:focus, .field textarea:focus { border-color: #59877b; box-shadow: 0 0 0 3px rgba(89, 135, 123, .13); }
+        .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 0 20px 20px; }
+        .toast { position: fixed; right: 22px; bottom: 22px; z-index: 5; padding: 12px 16px; border-radius: 5px; color: white; background: var(--ink); box-shadow: var(--shadow); font-size: 13px; opacity: 0; transform: translateY(8px); pointer-events: none; transition: .2s; }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        @media (max-width: 900px) {
+            .workspace { grid-template-columns: 1fr; }
+            .insight-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+            .insight-top { display: flex; flex-direction: column; justify-content: center; }
+        }
+        @media (max-width: 620px) {
+            main { padding-top: 30px; }
+            .topbar { min-height: 58px; }
+            .top-meta { display: none; }
+            .intro { align-items: flex-start; flex-direction: column; }
+            .intro-actions { width: 100%; }
+            .intro-actions .button-primary { flex: 1; }
+            .metrics { grid-template-columns: 1fr 1fr; }
+            .metric { padding: 14px 10px 14px 0; }
+            .metric + .metric { padding-left: 12px; }
+            .metric:nth-child(3) { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); }
+            .metric:nth-child(4) { border-top: 1px solid var(--line); }
+            .metric-value { font-size: 27px; }
+            .capacity { grid-template-columns: 1fr; gap: 12px; }
+            .capacity-setting { justify-content: flex-end; }
+            .panel-head { padding: 16px; }
+            .panel-head .button { padding: 0 10px; }
+            .filters { padding: 11px 14px; }
+            .filters select { width: 112px; }
+            th, td { padding: 11px 10px; }
+            .insight-panel { grid-template-columns: 1fr; }
+            .insight-top { min-height: 130px; }
+            .form-grid { grid-template-columns: 1fr; }
+            .field.full { grid-column: auto; }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">W</span><span>Work Analysis Studio</span></div>
+        <div class="top-meta" id="savedStatus">Data is stored in this browser</div>
+    </header>
+    <main>
+        <section class="intro">
+            <div>
+                <p class="eyebrow">WORKLOAD REVIEW / 01</p>
+                <h1>See your work clearly.<br>Then decide what to do.</h1>
+                <p class="intro-copy">Organize your tasks, time, and priorities. Review your weekly hours to understand your workload and find work worth rearranging.</p>
+            </div>
+            <div class="intro-actions">
+                <button class="button" id="exportButton" title="Export CSV" aria-label="Export CSV">↓ Export</button>
+                <button class="button button-primary" id="addTaskButton">＋ Add task</button>
+            </div>
+        </section>
+
+        <section class="metrics" aria-label="Work summary">
+            <div class="metric"><div class="metric-label">Total weekly time</div><div class="metric-value"><span id="weeklyTotal">0</span><span class="metric-unit">hrs</span></div></div>
+            <div class="metric"><div class="metric-label">Tasks</div><div class="metric-value"><span id="taskCount">0</span><span class="metric-unit">total</span></div></div>
+            <div class="metric"><div class="metric-label">High-priority tasks</div><div class="metric-value"><span id="highCount">0</span><span class="metric-unit">total</span></div></div>
+            <div class="metric"><div class="metric-label">Top category</div><div class="metric-value"><span id="topCategory" style="font: 600 20px 'Segoe UI', sans-serif">None</span></div></div>
+        </section>
+
+        <section class="capacity" aria-label="Weekly capacity">
+            <div>
+                <div class="capacity-head"><strong id="capacityMessage">Weekly capacity used</strong><span id="capacityNumbers">0 / 40 hrs</span></div>
+                <div class="capacity-track"><div class="capacity-fill" id="capacityFill"></div></div>
+            </div>
+            <label class="capacity-setting" for="capacityInput">Weekly capacity <input id="capacityInput" type="number" min="1" max="168" value="40"> hrs</label>
+        </section>
+
+        <div class="workspace">
+            <section class="work-panel">
+                <div class="panel-head">
+                    <div><h2>Task list</h2><p>Time is shown as hours per week</p></div>
+                    <button class="button" id="sampleButton">Load sample</button>
+                </div>
+                <div class="filters">
+                    <label class="search"><input id="searchInput" type="search" placeholder="Search task or note" aria-label="Search tasks"></label>
+                    <select id="categoryFilter" aria-label="Filter by category"><option value="all">All categories</option><option>Project</option><option>Routine</option><option>Meeting</option><option>Admin</option><option>Support</option></select>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Task</th><th>Category</th><th>Priority</th><th>Hours / week</th><th aria-label="Actions"></th></tr></thead>
+                        <tbody id="taskRows"></tbody>
+                    </table>
+                    <div class="empty" id="emptyState" hidden>No tasks yet. Add one to start organizing your work.</div>
+                </div>
+            </section>
+
+            <aside class="insight-panel">
+                <div class="insight-top"><p class="eyebrow">ANALYSIS NOTE</p><h2 id="insightHeadline">Start by reviewing one week of work.</h2></div>
+                <div class="insight-body">
+                    <h3>Hours by category</h3>
+                    <div id="categoryBreakdown"></div>
+                    <div class="recommendation" id="recommendation"><strong>Analysis tip</strong>Add tasks to see observations about your hours and priorities.</div>
+                    <p class="privacy-note"><span aria-hidden="true">◈</span><span>Your work data stays in this browser and is never uploaded to a server.</span></p>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <dialog id="taskDialog">
+        <form id="taskForm">
+            <div class="dialog-head"><h2 id="dialogTitle">Add task</h2><button class="icon-button" type="button" id="closeDialog" aria-label="Close">×</button></div>
+            <div class="form-grid">
+                <div class="field full"><label for="taskTitle">Task name *</label><input id="taskTitle" name="title" maxlength="90" required placeholder="e.g. Weekly product status review"></div>
+                <div class="field"><label for="taskCategory">Category</label><select id="taskCategory" name="category"><option>Project</option><option>Routine</option><option>Meeting</option><option>Admin</option><option>Support</option></select></div>
+                <div class="field"><label for="taskPriority">Priority</label><select id="taskPriority" name="priority"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select></div>
+                <div class="field"><label for="taskHours">Hours per occurrence *</label><input id="taskHours" name="hours" type="number" min="0.1" max="168" step="0.1" required value="1"></div>
+                <div class="field"><label for="taskFrequency">Occurrences per week *</label><input id="taskFrequency" name="frequency" type="number" min="0.1" max="168" step="0.1" required value="1"></div>
+                <div class="field full"><label for="taskNote">Notes</label><textarea id="taskNote" name="note" maxlength="240" placeholder="Add context about the scope or current blockers"></textarea></div>
+            </div>
+            <div class="dialog-actions"><button class="button" type="button" id="cancelDialog">Cancel</button><button class="button button-primary" type="submit">Save task</button></div>
+        </form>
+    </dialog>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script>
+        const STORAGE_KEY = 'work-analysis-items-v1';
+        const CAPACITY_KEY = 'work-analysis-capacity-v1';
+        const categoryColors = { Project: '#59877b', Routine: '#78a77d', Meeting: '#5183a0', Admin: '#d47c5b', Support: '#a08c4d' };
+        const legacyCategories = { '專案': 'Project', '例行': 'Routine', '會議': 'Meeting', '行政': 'Admin', '支援': 'Support' };
+        const priorityLabels = { high: 'High', medium: 'Medium', low: 'Low' };
+        const sampleTasks = [
+            { id: 'sample-1', title: 'Product roadmap planning', category: 'Project', priority: 'high', hours: 2, frequency: 3, note: 'Align cross-functional progress, risks, and action items' },
+            { id: 'sample-2', title: 'Team sync and meeting notes', category: 'Meeting', priority: 'medium', hours: 1, frequency: 4, note: 'Includes preparation and follow-up' },
+            { id: 'sample-3', title: 'Request triage and issue resolution', category: 'Support', priority: 'high', hours: 1.5, frequency: 5, note: 'Handle requests from internal teams' },
+            { id: 'sample-4', title: 'Weekly reporting and admin', category: 'Admin', priority: 'low', hours: 1.5, frequency: 2, note: 'Routine data updates and forms' }
+        ];
+        let tasks = loadTasks();
+        let editingId = null;
+        let toastTimer;
+
+        function loadTasks() {
+            try {
+                const value = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                return Array.isArray(value) ? value.filter(task => task && typeof task.title === 'string').map(task => ({ ...task, category: legacyCategories[task.category] || task.category })) : [];
+            } catch { return []; }
+        }
+
+        function saveTasks() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+            document.getElementById('savedStatus').textContent = `Saved in this browser · ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+            render();
+        }
+
+        function escapeHtml(value) {
+            return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+        }
+
+        function hoursPerWeek(task) { return Number(task.hours) * Number(task.frequency); }
+        function formatHours(value) { return Number.isInteger(value) ? String(value) : value.toFixed(1); }
+
+        function render() {
+            const query = document.getElementById('searchInput').value.trim().toLowerCase();
+            const category = document.getElementById('categoryFilter').value;
+            const visibleTasks = tasks.filter(task => (category === 'all' || task.category === category) && `${task.title} ${task.note || ''}`.toLowerCase().includes(query));
+            const total = tasks.reduce((sum, task) => sum + hoursPerWeek(task), 0);
+            const highCount = tasks.filter(task => task.priority === 'high').length;
+            const capacity = Math.max(1, Number(document.getElementById('capacityInput').value) || 40);
+            const totalsByCategory = tasks.reduce((result, task) => {
+                result[task.category] = (result[task.category] || 0) + hoursPerWeek(task);
+                return result;
+            }, {});
+            const top = Object.entries(totalsByCategory).sort((a, b) => b[1] - a[1])[0];
+
+            document.getElementById('weeklyTotal').textContent = formatHours(total);
+            document.getElementById('taskCount').textContent = tasks.length;
+            document.getElementById('highCount').textContent = highCount;
+            document.getElementById('topCategory').textContent = top ? top[0] : 'None';
+            document.getElementById('capacityNumbers').textContent = `${formatHours(total)} / ${formatHours(capacity)} hrs`;
+            document.getElementById('capacityMessage').textContent = total > capacity ? `${formatHours(total - capacity)} hrs over weekly capacity` : 'Weekly capacity used';
+            const fill = document.getElementById('capacityFill');
+            fill.style.width = `${Math.min(100, total / capacity * 100)}%`;
+            fill.classList.toggle('over', total > capacity);
+
+            document.getElementById('taskRows').innerHTML = visibleTasks.map(task => `
+                <tr>
+                    <td><div class="task-name">${escapeHtml(task.title)}</div>${task.note ? `<div class="task-note">${escapeHtml(task.note)}</div>` : ''}</td>
+                    <td><span class="tag ${task.category === 'Admin' ? 'admin' : task.category === 'Meeting' ? 'meeting' : task.category === 'Project' ? 'project' : ''}">${escapeHtml(task.category)}</span></td>
+                    <td><span class="priority"><span class="priority-dot ${task.priority}"></span>${priorityLabels[task.priority] || 'Medium'}</span></td>
+                    <td><strong>${formatHours(hoursPerWeek(task))}</strong> hrs</td>
+                    <td><div class="row-actions"><button class="icon-button" data-action="edit" data-id="${escapeHtml(task.id)}" aria-label="Edit ${escapeHtml(task.title)}" title="Edit">✎</button><button class="icon-button delete" data-action="delete" data-id="${escapeHtml(task.id)}" aria-label="Delete ${escapeHtml(task.title)}" title="Delete">×</button></div></td>
+                </tr>`).join('');
+            document.getElementById('emptyState').hidden = visibleTasks.length > 0;
+            document.getElementById('categoryBreakdown').innerHTML = top ? Object.entries(totalsByCategory).sort((a, b) => b[1] - a[1]).map(([name, value]) => `
+                <div class="category-row"><div class="category-meta"><span>${escapeHtml(name)}</span><span>${formatHours(value)} hrs · ${Math.round(value / total * 100)}%</span></div><div class="category-track"><div class="category-fill" style="width:${value / total * 100}%;background:${categoryColors[name] || '#59877b'}"></div></div></div>`).join('') : '<div style="color:var(--muted);font-size:12px">No data yet</div>';
+            updateInsight(total, capacity, top, highCount);
+        }
+
+        function updateInsight(total, capacity, top, highCount) {
+            const headline = document.getElementById('insightHeadline');
+            const recommendation = document.getElementById('recommendation');
+            if (!tasks.length) {
+                headline.textContent = 'Start by reviewing one week of work.';
+                recommendation.innerHTML = '<strong>Analysis tip</strong>Add tasks to see observations about your hours and priorities.';
+            } else if (total > capacity) {
+                headline.textContent = `Your schedule is ${formatHours(total - capacity)} hrs over weekly capacity.`;
+                recommendation.innerHTML = `<strong>Worth reviewing</strong>Start with low-priority tasks, or see whether ${escapeHtml(top[0])} work can be combined, delegated, or scheduled less often.`;
+            } else if (highCount === 0) {
+                headline.textContent = `You have ${formatHours(total)} hrs scheduled, with no high-priority tasks marked.`;
+                recommendation.innerHTML = '<strong>Worth reviewing</strong>Identify this week\'s most important outcomes and mark work that directly supports them as high priority.';
+            } else {
+                headline.textContent = `${top[0]} takes the most time: ${formatHours(top[1])} hrs per week.`;
+                recommendation.innerHTML = `<strong>Worth reviewing</strong>You have ${highCount} high-priority task${highCount === 1 ? '' : 's'}. Check that the time spent matches the expected outcomes.`;
+            }
+        }
+
+        function openDialog(task) {
+            editingId = task ? task.id : null;
+            document.getElementById('dialogTitle').textContent = task ? 'Edit task' : 'Add task';
+            const form = document.getElementById('taskForm');
+            form.reset();
+            if (task) {
+                form.elements.title.value = task.title;
+                form.elements.category.value = task.category;
+                form.elements.priority.value = task.priority;
+                form.elements.hours.value = task.hours;
+                form.elements.frequency.value = task.frequency;
+                form.elements.note.value = task.note || '';
+            }
+            document.getElementById('taskDialog').showModal();
+            document.getElementById('taskTitle').focus();
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toast.classList.remove('show'), 2300);
+        }
+
+        document.getElementById('addTaskButton').addEventListener('click', () => openDialog());
+        document.getElementById('closeDialog').addEventListener('click', () => document.getElementById('taskDialog').close());
+        document.getElementById('cancelDialog').addEventListener('click', () => document.getElementById('taskDialog').close());
+        document.getElementById('taskForm').addEventListener('submit', event => {
+            event.preventDefault();
+            const form = event.currentTarget;
+            const task = {
+                id: editingId || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
+                title: form.elements.title.value.trim(), category: form.elements.category.value,
+                priority: form.elements.priority.value, hours: Number(form.elements.hours.value),
+                frequency: Number(form.elements.frequency.value), note: form.elements.note.value.trim()
+            };
+            if (!task.title || task.hours <= 0 || task.frequency <= 0) return;
+            if (editingId) tasks = tasks.map(item => item.id === editingId ? task : item);
+            else tasks.push(task);
+            saveTasks();
+            document.getElementById('taskDialog').close();
+            showToast(editingId ? 'Task updated' : 'Task added');
+        });
+        document.getElementById('taskRows').addEventListener('click', event => {
+            const button = event.target.closest('button[data-action]');
+            if (!button) return;
+            const task = tasks.find(item => item.id === button.dataset.id);
+            if (!task) return;
+            if (button.dataset.action === 'edit') openDialog(task);
+            if (button.dataset.action === 'delete' && confirm(`Delete "${task.title}"?`)) {
+                tasks = tasks.filter(item => item.id !== task.id);
+                saveTasks();
+                showToast('Task deleted');
+            }
+        });
+        document.getElementById('searchInput').addEventListener('input', render);
+        document.getElementById('categoryFilter').addEventListener('change', render);
+        document.getElementById('capacityInput').value = localStorage.getItem(CAPACITY_KEY) || '40';
+        document.getElementById('capacityInput').addEventListener('change', event => {
+            const value = Math.min(168, Math.max(1, Number(event.target.value) || 40));
+            event.target.value = value;
+            localStorage.setItem(CAPACITY_KEY, String(value));
+            render();
+        });
+        document.getElementById('sampleButton').addEventListener('click', () => {
+            if (tasks.length && !confirm('Loading the sample will replace your current task list. Continue?')) return;
+            tasks = sampleTasks.map(task => ({ ...task }));
+            saveTasks();
+            showToast('Sample tasks loaded');
+        });
+        document.getElementById('exportButton').addEventListener('click', () => {
+            if (!tasks.length) { showToast('There are no tasks to export'); return; }
+            const quote = value => `"${String(value).replace(/"/g, '""')}"`;
+            const rows = [['Task', 'Category', 'Priority', 'Hours per occurrence', 'Occurrences per week', 'Hours per week', 'Notes'], ...tasks.map(task => [task.title, task.category, priorityLabels[task.priority] || 'Medium', task.hours, task.frequency, formatHours(hoursPerWeek(task)), task.note || ''])];
+            const csv = '\uFEFF' + rows.map(row => row.map(quote).join(',')).join('\r\n');
+            const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `work-analysis-${new Date().toISOString().slice(0, 10)}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+            showToast('CSV exported');
+        });
+        render();
+    </script>
+</body>
+</html>

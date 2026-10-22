@@ -377,6 +377,14 @@
                         <span class="nav-item-icon">📈</span>
                         <span>台灣股票</span>
                     </div>
+                    <div class="nav-item" onclick="showPage('work-analysis')">
+                        <span class="nav-item-icon">🧭</span>
+                        <span>工作分析</span>
+                    </div>
+                    <div class="nav-item" onclick="showPage('dnd-table')">
+                        <span class="nav-item-icon">⚔️</span>
+                        <span>D&amp;D 冒險桌</span>
+                    </div>
                 </div>
 
                 <!-- Utilities -->
@@ -466,6 +474,20 @@
                         </div>
 
                         <div class="welcome-card">
+                            <div class="card-icon">🧭</div>
+                            <div class="card-title">工作分析</div>
+                            <div class="card-desc">整理任務、工時、優先度與每週負荷</div>
+                            <button class="card-action" onclick="showPage('work-analysis')">進入</button>
+                        </div>
+
+                        <div class="welcome-card">
+                            <div class="card-icon">⚔️</div>
+                            <div class="card-title">D&amp;D 冒險桌</div>
+                            <div class="card-desc">管理戰役、角色隊伍、遭遇先攻與規則書</div>
+                            <button class="card-action" onclick="showPage('dnd-table')">進入</button>
+                        </div>
+
+                        <div class="welcome-card">
                             <div class="card-icon">🔍</div>
                             <div class="card-title">系統診斷</div>
                             <div class="card-desc">檢查所有工具和系統的健康狀態</div>
@@ -476,6 +498,8 @@
                     <div class="quick-links">
                         <h3>快速連結</h3>
                         <div class="links-grid">
+                            <button class="link-btn" onclick="openInNewWindow('dnd5e-adventure-table.html')">⚔️ 直接打開 D&amp;D 冒險桌</button>
+                            <button class="link-btn" onclick="openInNewWindow('工作分析工具.html')">🧭 直接打開工作分析</button>
                             <button class="link-btn" onclick="openInNewWindow('devops_dashboard.html')">📊 直接打開DevOps儀表板</button>
                             <button class="link-btn" onclick="openInNewWindow('outlook-tool.html')">📧 直接打開Outlook工具</button>
                             <button class="link-btn" onclick="openInNewWindow('taiwan-stocks-top10.html')">📈 直接打開股票行情</button>
@@ -561,6 +585,22 @@
                         <iframe src="教材生成器主控台.html"></iframe>
                     </div>
                 </div>
+
+                <!-- Work Analysis Page -->
+                <div class="page" id="work-analysis">
+                    <div class="page-title">🧭 工作分析</div>
+                    <div class="iframe-container">
+                        <iframe src="工作分析工具.html" title="工作分析工具"></iframe>
+                    </div>
+                </div>
+
+                <!-- D&D 5e Adventure Table -->
+                <div class="page" id="dnd-table">
+                    <div class="page-title">⚔️ D&amp;D 冒險桌</div>
+                    <div class="iframe-container">
+                        <iframe src="dnd5e-adventure-table.html" title="D&amp;D 第五版冒險桌"></iframe>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -584,7 +624,8 @@
             document.getElementById(pageName).classList.add('active');
 
             // Highlight nav item
-            event.target.closest('.nav-item').classList.add('active');
+            const navItem = event?.target?.closest('.nav-item');
+            if (navItem) navItem.classList.add('active');
 
             // Update title
             const titles = {
@@ -594,7 +635,9 @@
                 'devops': 'DevOps儀表板',
                 'outlook': 'Outlook工具',
                 'stocks': '台灣股票',
-                'education': '教材生成器'
+                'education': '教材生成器',
+                'work-analysis': '工作分析',
+                'dnd-table': 'D&D 冒險桌'
             };
             document.getElementById('pageTitle').textContent = titles[pageName] || '頁面';
 
