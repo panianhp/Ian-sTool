@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HP BIOS - HE Solution Team PM Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -272,6 +273,24 @@
         }
         .modal-close:hover { background: #f0f0f0; color: #333; }
         .modal-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
+        .monthly-modal {
+            width: 95vw;
+            max-width: calc(100vw - 24px);
+            height: 88vh;
+            max-height: calc(100vh - 24px);
+            min-width: 520px;
+            min-height: 360px;
+            resize: both;
+            overflow: hidden;
+        }
+        @media (max-width: 600px) {
+            .monthly-modal {
+                width: 96vw;
+                min-width: 0;
+                height: 90vh;
+                resize: none;
+            }
+        }
         .modal-footer {
             padding: 12px 20px; border-top: 1px solid #e8eef8;
             display: flex; justify-content: flex-end; gap: 8px;
@@ -315,50 +334,33 @@
             font-size: 12px; color: #667;
             padding: 0 2px;
         }
-        .tag-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 10px;
-        }
+        .tag-grid { display: flex; flex-direction: column; gap: 14px; }
         .tag-card {
-            border: 1px solid #dfe7f5;
-            border-radius: 8px;
-            background: #fff;
-            overflow: hidden;
+            border: 1px solid #dfe7f5; background: #fff; overflow: hidden;
         }
         .tag-card-header {
-            background: linear-gradient(135deg, #eef4ff 0%, #f8fbff 100%);
-            border-bottom: 1px solid #e3ecfb;
-            padding: 10px 12px;
-            display: flex; justify-content: space-between; align-items: center;
-            gap: 10px;
+            padding: 8px 12px; text-align: center; font-weight: 700;
+            color: #111; text-decoration: underline; font-size: 15px;
         }
-        .tag-name { font-weight: 700; color: #1d4b8f; font-size: 14px; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .tag-badges { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-        .mini-badge {
-            border-radius: 10px; padding: 1px 7px; font-size: 11px; font-weight: 700;
-            border: 1px solid transparent;
+        .tag-status-columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .tag-status-column { min-width: 0; border: 1px solid; }
+        .tag-status-column + .tag-status-column { border-left: 0; }
+        .tag-status-column.accomplished { border-color: #00b050; }
+        .tag-status-column.in-progress { border-color: #c65911; }
+        .tag-status-column.planned { border-color: #5b9bd5; }
+        .tag-status-heading { padding: 5px 8px; color: white; text-align: center; font-weight: 700; font-size: 12px; }
+        .accomplished .tag-status-heading { background: #00b050; }
+        .in-progress .tag-status-heading { background: #c65911; }
+        .planned .tag-status-heading { background: #5b9bd5; }
+        .tag-status-list { margin: 0; padding: 6px 8px 6px 30px; font-size: 12px; line-height: 1.5; }
+        .tag-status-list li { padding: 1px 0; overflow-wrap: anywhere; }
+        .tag-status-list a { color: inherit; text-decoration: none; }
+        .tag-status-list a:hover { text-decoration: underline; }
+        .tag-status-empty { padding: 9px; color: #8a96a8; font-size: 12px; }
+        @media (max-width: 700px) {
+            .tag-status-columns { grid-template-columns: 1fr; }
+            .tag-status-column + .tag-status-column { border-left: 1px solid; border-top: 0; }
         }
-        .mini-badge.total { background: #e7eefb; color: #27406f; border-color: #cfdaf0; }
-        .mini-badge.done { background: #e6f7ec; color: #0f6b36; border-color: #b8e3c9; }
-        .mini-badge.ongoing { background: #fff5e9; color: #995f12; border-color: #f0d2ab; }
-        .mini-badge.new { background: #e9f2ff; color: #1d57b7; border-color: #c9dbfd; }
-        .tag-item-list { max-height: 240px; overflow: auto; }
-        .tag-item {
-            border-bottom: 1px solid #f0f4fb;
-            padding: 8px 12px;
-            font-size: 12px;
-        }
-        .tag-item:last-child { border-bottom: none; }
-        .tag-item-title { line-height: 1.5; color: #2e3642; }
-        .tag-item-meta { margin-top: 3px; color: #6f7d93; font-size: 11px; display: flex; gap: 8px; flex-wrap: wrap; }
-        .state-pill {
-            border-radius: 9px; padding: 1px 7px; font-size: 10px; font-weight: 700;
-            text-transform: uppercase; letter-spacing: 0.3px;
-        }
-        .state-pill.done { background: #e6f7ec; color: #0f6b36; }
-        .state-pill.ongoing { background: #fff5e9; color: #995f12; }
-        .state-pill.new { background: #e9f2ff; color: #1d57b7; }
 
         /* === Preformatted text === */
         pre {
@@ -747,10 +749,11 @@
 
 <!-- ===== Modal: Done Summary ===== -->
 <div class="modal-overlay" id="modalDone">
-    <div class="modal">
+    <div class="modal monthly-modal">
         <div class="modal-header">
             <h3>📊 Monthly Report (By Current Main List)</h3>
             <div style="display:flex; align-items:center; gap:8px;">
+                <button class="btn btn-secondary" style="padding:5px 10px; font-size:12px;" onclick="exportMonthlyReportExcel()">📥 Excel</button>
                 <button class="btn btn-secondary" style="padding:5px 10px; font-size:12px;" onclick="exportMonthlyReportToOutlookMail()">✉️ Outlook Mail</button>
                 <button class="modal-close" onclick="closeModal('modalDone')">✕</button>
             </div>
@@ -1340,31 +1343,30 @@ function openDoneSummary() {
     const doneCount = sourceItems.filter(i => classify(i.state) === 'Done').length;
     const ongoingCount = sourceItems.filter(i => classify(i.state) === 'Ongoing').length;
     const newCount = sourceItems.filter(i => classify(i.state) === 'New').length;
+    const storyCount = sourceItems.filter(i => String(i.type || '').toLowerCase().includes('story')).length;
+    const featureCount = sourceItems.filter(i => String(i.type || '').toLowerCase().includes('feature')).length;
     const today = new Date().toISOString().slice(0, 10);
     const org = document.getElementById('orgInput').value.trim();
     const project = document.getElementById('projectInput').value.trim();
 
     monthlyReportCache = {
         today,
+        org,
+        project,
         sourceItems,
         tags,
         tagMap,
         doneCount,
         ongoingCount,
-        newCount
+        newCount,
+        storyCount,
+        featureCount
     };
 
     let html = `
         <div class="monthly-meta">
             <div><strong>Monthly Report</strong> · ${today}</div>
             <div>Source: Current main list + recently closed items</div>
-        </div>
-        <div class="monthly-summary">
-            <div class="monthly-stat"><div class="k">Total Items</div><div class="v">${sourceItems.length}</div></div>
-            <div class="monthly-stat"><div class="k">Tags</div><div class="v">${tags.length}</div></div>
-            <div class="monthly-stat"><div class="k">Done</div><div class="v">${doneCount}</div></div>
-            <div class="monthly-stat"><div class="k">Ongoing</div><div class="v">${ongoingCount}</div></div>
-            <div class="monthly-stat"><div class="k">New</div><div class="v">${newCount}</div></div>
         </div>
     `;
 
@@ -1378,43 +1380,31 @@ function openDoneSummary() {
     html += '<div class="tag-grid">';
     for (const tag of tags) {
         const g = tagMap[tag];
-        const total = g.Done.length + g.Ongoing.length + g.New.length;
-        const allItems = [...g.Done, ...g.Ongoing, ...g.New]
-            .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+        const statusGroups = [
+            ['Accomplished', 'Done', 'accomplished'],
+            ['In Progress', 'Ongoing', 'in-progress'],
+            ['Planned', 'New', 'planned']
+        ];
 
         html += `
             <section class="tag-card">
-                <div class="tag-card-header">
-                    <div class="tag-name" title="${esc(tag)}">${esc(tag)}</div>
-                    <div class="tag-badges">
-                        <span class="mini-badge total">Total ${total}</span>
-                        <span class="mini-badge done">Done ${g.Done.length}</span>
-                        <span class="mini-badge ongoing">Ongoing ${g.Ongoing.length}</span>
-                        <span class="mini-badge new">New ${g.New.length}</span>
-                    </div>
-                </div>
-                <div class="tag-item-list">
+                <div class="tag-card-header" title="${esc(tag)}">${esc(tag)}</div>
+                <div class="tag-status-columns">
         `;
 
-        for (const item of allItems) {
-            const bucket = classify(item.state).toLowerCase();
-            const wiUrl = project
-                ? `https://dev.azure.com/${org}/${encodeURIComponent(project)}/_workitems/edit/${item.id}`
-                : `https://dev.azure.com/${org}/_workitems/edit/${item.id}`;
-            html += `
-                <div class="tag-item">
-                    <div class="tag-item-title">
-                        <a class="id-link" href="${wiUrl}" target="_blank" rel="noopener">#${esc(item.id)}</a>
-                        [P${esc(item.pri)}] ${esc(item.title)}
-                    </div>
-                    <div class="tag-item-meta">
-                        <span class="state-pill ${bucket}">${esc(classify(item.state))}</span>
-                        <span>${esc(item.type)}</span>
-                        <span>${esc(item.owner)}</span>
-                        <span>${esc(item.date || '-')}</span>
-                    </div>
-                </div>
-            `;
+        for (const [heading, status, className] of statusGroups) {
+            const groupItems = g[status].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+            html += `<div class="tag-status-column ${className}"><div class="tag-status-heading">${heading}</div>`;
+            if (groupItems.length === 0) html += '<div class="tag-status-empty">No items</div>';
+            else html += '<ol class="tag-status-list">';
+            for (const item of groupItems) {
+                const wiUrl = project
+                    ? `https://dev.azure.com/${org}/${encodeURIComponent(project)}/_workitems/edit/${item.id}`
+                    : `https://dev.azure.com/${org}/_workitems/edit/${item.id}`;
+                html += `<li><a href="${wiUrl}" target="_blank" rel="noopener">${esc(item.title)}</a></li>`;
+            }
+            if (groupItems.length > 0) html += '</ol>';
+            html += '</div>';
         }
 
         html += '</div></section>';
@@ -1430,6 +1420,75 @@ function classifyMonthlyState(state) {
     if (['done', 'closed', 'resolved'].some(k => s.includes(k))) return 'Done';
     if (['new', 'proposed', 'to do'].some(k => s.includes(k))) return 'New';
     return 'Ongoing';
+}
+
+function exportMonthlyReportExcel() {
+    if (!monthlyReportCache?.sourceItems?.length) {
+        showToast('Please open Monthly Report first', 'warn');
+        return;
+    }
+    if (!window.XLSX) {
+        showToast('Excel export library did not load. Check your internet connection.', 'warn');
+        return;
+    }
+
+    const cache = monthlyReportCache;
+    const workbook = XLSX.utils.book_new();
+    const summaryRows = [
+        { Metric: 'Report Date', Value: cache.today },
+        { Metric: 'Organization', Value: cache.org || '' },
+        { Metric: 'Project', Value: cache.project || '' },
+        { Metric: 'Source Items', Value: cache.sourceItems.length },
+        { Metric: 'Done', Value: cache.doneCount },
+        { Metric: 'In Progress', Value: cache.ongoingCount },
+        { Metric: 'Planned', Value: cache.newCount },
+        { Metric: 'Stories', Value: cache.storyCount },
+        { Metric: 'Features', Value: cache.featureCount }
+    ];
+    const summarySheet = XLSX.utils.json_to_sheet(summaryRows);
+    summarySheet['!cols'] = [{ wch: 22 }, { wch: 32 }];
+    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+
+    const tagRows = cache.tags.map(tag => {
+        const groups = cache.tagMap[tag];
+        return {
+            Tag: tag,
+            Done: groups.Done.length,
+            'In Progress': groups.Ongoing.length,
+            Planned: groups.New.length,
+            Total: groups.Done.length + groups.Ongoing.length + groups.New.length
+        };
+    });
+    const tagSheet = tagRows.length
+        ? XLSX.utils.json_to_sheet(tagRows)
+        : XLSX.utils.aoa_to_sheet([['Tag', 'Done', 'In Progress', 'Planned', 'Total'], ['No reportable tags']]);
+    tagSheet['!cols'] = [{ wch: 28 }, { wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(workbook, tagSheet, 'Tag Summary');
+
+    const detailRows = cache.sourceItems.map(item => {
+        const itemTags = item.tags?.length ? item.tags : ['(Untagged)'];
+        const reportableTags = itemTags.filter(tag => cache.tags.includes(String(tag).trim() || '(Untagged)'));
+        const url = cache.project
+            ? `https://dev.azure.com/${cache.org}/${encodeURIComponent(cache.project)}/_workitems/edit/${item.id}`
+            : `https://dev.azure.com/${cache.org}/_workitems/edit/${item.id}`;
+        return {
+            Priority: item.pri,
+            Type: item.type,
+            Title: item.title,
+            Status: classifyMonthlyState(item.state),
+            State: item.state,
+            Owner: item.owner,
+            ChangedDate: item.date,
+            Tags: reportableTags.join(', '),
+            Stale: item.stale ? 'Yes' : 'No'
+        };
+    });
+    const detailSheet = XLSX.utils.json_to_sheet(detailRows);
+    detailSheet['!cols'] = [{ wch: 10 }, { wch: 16 }, { wch: 56 }, { wch: 14 }, { wch: 16 }, { wch: 25 }, { wch: 16 }, { wch: 34 }, { wch: 10 }];
+    XLSX.utils.book_append_sheet(workbook, detailSheet, 'Work Items');
+
+    XLSX.writeFile(workbook, `Monthly_Report_${cache.today}.xlsx`);
+    showToast('✅ Monthly Report Excel downloaded', 'success');
 }
 
 async function exportMonthlyReportToOutlookMail() {
@@ -1462,50 +1521,39 @@ async function exportMonthlyReportToOutlookMail() {
 }
 
 function buildMonthlyOutlookHtml(cache) {
-    const { today, sourceItems, tags, tagMap, doneCount, ongoingCount, newCount } = cache;
+    const { today, tags, tagMap, org, project } = cache;
+    const statusGroups = [
+        ['Accomplished', 'Done', '#00b050'],
+        ['In Progress', 'Ongoing', '#c65911'],
+        ['Planned', 'New', '#5b9bd5']
+    ];
     let html = '';
     html += '<div style="font-family:Segoe UI,Arial,sans-serif;color:#1f2937;line-height:1.45;">';
     html += `<h2 style="margin:0 0 8px;color:#0f4c81;">Monthly Report - ${esc(today)}</h2>`;
     html += '<p style="margin:0 0 12px;color:#4b5563;font-size:13px;">Source: Current main list + recently closed items</p>';
-    html += '<table style="border-collapse:collapse;margin:0 0 14px;font-size:13px;">';
-    html += '<tr>';
-    html += `<td style="border:1px solid #dbe2ee;padding:6px 10px;background:#f8fbff;"><b>Total</b><br>${sourceItems.length}</td>`;
-    html += `<td style="border:1px solid #dbe2ee;padding:6px 10px;background:#f8fbff;"><b>Tags</b><br>${tags.length}</td>`;
-    html += `<td style="border:1px solid #dbe2ee;padding:6px 10px;background:#f8fbff;"><b>Done</b><br>${doneCount}</td>`;
-    html += `<td style="border:1px solid #dbe2ee;padding:6px 10px;background:#f8fbff;"><b>Ongoing</b><br>${ongoingCount}</td>`;
-    html += `<td style="border:1px solid #dbe2ee;padding:6px 10px;background:#f8fbff;"><b>New</b><br>${newCount}</td>`;
-    html += '</tr>';
-    html += '</table>';
 
     for (const tag of tags) {
         const g = tagMap[tag];
-        const allItems = [...g.Done, ...g.Ongoing, ...g.New].sort((a, b) => String(b.date).localeCompare(String(a.date)));
-        const total = g.Done.length + g.Ongoing.length + g.New.length;
-
-        html += `<h3 style="margin:14px 0 6px;color:#1d4b8f;">${esc(tag)} <span style="font-size:12px;color:#6b7280;">(${total})</span></h3>`;
-        html += '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px;">';
-        html += '<tr style="background:#f3f7ff;">';
-        html += '<th style="border:1px solid #dbe2ee;padding:6px;text-align:left;">ID</th>';
-        html += '<th style="border:1px solid #dbe2ee;padding:6px;text-align:left;">Pri</th>';
-        html += '<th style="border:1px solid #dbe2ee;padding:6px;text-align:left;">State</th>';
-        html += '<th style="border:1px solid #dbe2ee;padding:6px;text-align:left;">Type</th>';
-        html += '<th style="border:1px solid #dbe2ee;padding:6px;text-align:left;">Title</th>';
-        html += '<th style="border:1px solid #dbe2ee;padding:6px;text-align:left;">Owner</th>';
-        html += '<th style="border:1px solid #dbe2ee;padding:6px;text-align:left;">Date</th>';
-        html += '</tr>';
-
-        for (const item of allItems) {
-            html += '<tr>';
-            html += `<td style="border:1px solid #e4e9f2;padding:6px;">#${esc(item.id)}</td>`;
-            html += `<td style="border:1px solid #e4e9f2;padding:6px;">P${esc(item.pri)}</td>`;
-            html += `<td style="border:1px solid #e4e9f2;padding:6px;">${esc(classifyMonthlyState(item.state))}</td>`;
-            html += `<td style="border:1px solid #e4e9f2;padding:6px;">${esc(item.type)}</td>`;
-            html += `<td style="border:1px solid #e4e9f2;padding:6px;">${esc(item.title)}</td>`;
-            html += `<td style="border:1px solid #e4e9f2;padding:6px;">${esc(item.owner)}</td>`;
-            html += `<td style="border:1px solid #e4e9f2;padding:6px;white-space:nowrap;">${esc(item.date || '-')}</td>`;
-            html += '</tr>';
+        html += `<h3 style="margin:14px 0 0;text-align:center;color:#111;text-decoration:underline;">${esc(tag)}</h3>`;
+        html += '<table style="width:100%;table-layout:fixed;border-collapse:collapse;font-size:12px;margin-bottom:12px;"><tr>';
+        for (const [heading, status, color] of statusGroups) {
+            html += `<td style="width:33.33%;vertical-align:top;border:1px solid ${color};padding:0;">`;
+            html += `<div style="background:${color};color:#fff;text-align:center;font-weight:bold;padding:5px;">${heading}</div>`;
+            const groupItems = [...g[status]].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+            if (groupItems.length === 0) html += '<div style="padding:8px;color:#8a96a8;">No items</div>';
+            else {
+                html += '<ol style="margin:0;padding:8px 8px 8px 28px;">';
+                for (const item of groupItems) {
+                    const url = project
+                        ? `https://dev.azure.com/${org}/${encodeURIComponent(project)}/_workitems/edit/${item.id}`
+                        : `https://dev.azure.com/${org}/_workitems/edit/${item.id}`;
+                    html += `<li style="padding:1px 0;"><a href="${url}" style="color:#0f4c81;text-decoration:none;">${esc(item.title)}</a></li>`;
+                }
+                html += '</ol>';
+            }
+            html += '</td>';
         }
-        html += '</table>';
+        html += '</tr></table>';
     }
 
     html += '</div>';
@@ -1513,21 +1561,26 @@ function buildMonthlyOutlookHtml(cache) {
 }
 
 function buildMonthlyOutlookText(cache) {
-    const { today, sourceItems, tags, tagMap, doneCount, ongoingCount, newCount } = cache;
+    const { today, tags, tagMap } = cache;
+    const statusGroups = [
+        ['Accomplished', 'Done'],
+        ['In Progress', 'Ongoing'],
+        ['Planned', 'New']
+    ];
     let out = `Monthly Report - ${today}\n`;
     out += '========================================\n';
     out += 'Source: Current main list + recently closed items\n';
-    out += `Total: ${sourceItems.length} | Tags: ${tags.length} | Done: ${doneCount} | Ongoing: ${ongoingCount} | New: ${newCount}\n`;
 
     for (const tag of tags) {
         const g = tagMap[tag];
-        const allItems = [...g.Done, ...g.Ongoing, ...g.New].sort((a, b) => String(b.date).localeCompare(String(a.date)));
-        const total = g.Done.length + g.Ongoing.length + g.New.length;
-        out += `\n[${tag}] (${total})\n`;
-        out += '----------------------------------------\n';
-        for (const item of allItems) {
-            out += `#${item.id} P${item.pri} ${classifyMonthlyState(item.state)} | ${item.type} | ${item.owner} | ${item.date || '-'}\n`;
-            out += `${item.title}\n`;
+        out += `\n${tag}\n`;
+        for (const [heading, status] of statusGroups) {
+            out += `\n${heading}\n`;
+            const groupItems = [...g[status]].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+            if (groupItems.length === 0) out += '  No items\n';
+            groupItems.forEach((item, index) => {
+                out += `${index + 1}. ${item.title}\n`;
+            });
         }
     }
     return out;

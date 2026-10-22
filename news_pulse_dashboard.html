@@ -72,6 +72,10 @@
     <!-- 手動擷取快照時短暫顯示的閃光覆蓋層。 -->
     <div id="cameraFlash" class="fixed inset-0 pointer-events-none z-50 opacity-0 transition-opacity"></div>
 
+    <div class="w-full bg-[#171B42]">
+        <img src="NEWS_PULSE.jpg" alt="NEWS PULSE 即時掌握全球焦點" class="block w-full max-w-[1200px] h-auto mx-auto">
+    </div>
+
     <header class="border-b border-gray-800 bg-[#0E131F]/90 backdrop-blur sticky top-0 z-40 px-4 lg:px-6 py-3">
         <div class="max-w-[1920px] mx-auto flex flex-wrap items-center justify-between gap-4">
 
@@ -175,6 +179,19 @@
                 <span class="hidden sm:inline">雙重畫面解析度: 1280 × 800</span>
             </div>
         </div>
+
+        <section class="bg-gray-900/80 rounded-xl border border-gray-800 p-4 lg:p-5" aria-labelledby="vocabularyHeading">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                <div>
+                    <h2 id="vocabularyHeading" class="text-sm font-bold text-white">新聞動態單字</h2>
+                    <p class="text-xs text-gray-400 mt-1">從目前 CNN 與 BBC 英文標題、摘要擷取並即時查詢釋義，最多 5 個</p>
+                </div>
+                <span id="vocabularyStatus" class="text-xs text-gray-500" aria-live="polite">等待新聞載入…</span>
+            </div>
+            <div id="vocabularyList" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-2.5">
+                <p class="text-xs text-gray-500">新聞載入後會即時整理單字…</p>
+            </div>
+        </section>
 
         <!-- 雙欄新聞面板：左側 CNN，右側 BBC。 -->
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -387,7 +404,7 @@
                 'https://feeds.bbci.co.uk/sport/rss.xml'
             ]
         };
-        const NEWS_CACHE_KEY = 'news-pulse-live-news-v2';
+        const NEWS_CACHE_KEY = 'news-pulse-live-news-v3';
         const NEWS_REFRESH_INTERVAL = 15 * 60 * 1000;
         const NEWS_DATABASE = { cnn: [], bbc: [] };
         const toTraditionalChinese = typeof OpenCC !== 'undefined'
@@ -405,6 +422,8 @@
         let newsFetchedAt = 0;
         let newsRefreshTimerId = null;
         let newsRequestPending = false;
+        let vocabularyRequestId = 0;
+        let vocabularySignature = '';
         const snapshotArchive = [];
         const SNAPSHOT_DB_NAME = 'news-pulse-snapshots';
         const SNAPSHOT_STORE_NAME = 'snapshots';
@@ -484,9 +503,12 @@
             return 'world';
         }
 
-        async function translateNewsText(text) {
+        async function translateNewsText(text, timeoutMs = 0) {
             const endpoint = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-TW&dt=t&q=';
-            const response = await fetch(endpoint + encodeURIComponent(text));
+            const options = timeoutMs && typeof AbortSignal.timeout === 'function'
+                ? { signal: AbortSignal.timeout(timeoutMs) }
+                : {};
+            const response = await fetch(endpoint + encodeURIComponent(text), options);
             if (!response.ok) throw new Error('Translation request failed');
             const result = await response.json();
             return toTraditionalChinese(result[0].map(segment => segment[0] || '').join(''));
@@ -507,6 +529,8 @@
                     cat: classifyNews(`${title} ${summary}`),
                     title,
                     summary,
+                    originalTitle: title,
+                    originalSummary: summary,
                     publishedAt,
                     time: formatNewsAge(publishedAt),
                     url: item.link
@@ -617,6 +641,109 @@
             document.getElementById('tickerContent').innerHTML = tickerList.length
                 ? tickerList.map(item => `• <span class="text-white font-medium">${escapeHtml(item.title)}</span> (${escapeHtml(item.time)})`).join(' &nbsp;&nbsp;&nbsp;&nbsp; ')
                 : '目前沒有可顯示的即時新聞。';
+
+            renderVocabulary();
+        }
+
+        function extractVocabularyCandidates(articles) {
+            const counts = new Map();
+            articles.forEach(article => {
+                const tokens = article.englishText.match(/[A-Za-z][A-Za-z'-]{4,}/g) || [];
+                tokens.forEach(token => {
+                    const word = token.toLowerCase().replace(/^['-]|['-]$/g, '');
+                    if (word.length < 6) return;
+                    const current = counts.get(word) || { word, count: 0, article };
+                    current.count++;
+                    counts.set(word, current);
+                });
+            });
+            return [...counts.values()].sort((first, second) => second.count - first.count || second.word.length - first.word.length);
+        }
+
+        async function fetchWordDefinition(word) {
+            const options = typeof AbortSignal.timeout === 'function' ? { signal: AbortSignal.timeout(4000) } : {};
+            const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`, options);
+            if (!response.ok) return null;
+            const entries = await response.json();
+            for (const entry of entries) {
+                for (const meaning of entry.meanings || []) {
+                    if (!['noun', 'verb', 'adjective', 'adverb'].includes(meaning.partOfSpeech)) continue;
+                    const definition = meaning.definitions?.find(item => item.definition)?.definition;
+                    if (definition) return { word: entry.word || word, partOfSpeech: meaning.partOfSpeech || 'English', definition };
+                }
+            }
+            return null;
+        }
+
+        async function renderVocabulary() {
+            const container = document.getElementById('vocabularyList');
+            const status = document.getElementById('vocabularyStatus');
+            const articles = ['cnn', 'bbc'].flatMap(source => NEWS_DATABASE[source].map(article => ({
+                ...article,
+                sourceName: source.toUpperCase(),
+                englishText: `${article.originalTitle || ''} ${article.originalSummary || ''}`
+            })));
+            if (!articles.length) {
+                vocabularySignature = '';
+                status.textContent = '等待新聞載入';
+                container.innerHTML = '<p class="text-xs text-gray-500">新聞載入後會自動擷取單字。</p>';
+                return;
+            }
+
+            const signature = articles.map(article => `${article.url}:${article.englishText}`).join('|');
+            if (signature === vocabularySignature) return;
+            vocabularySignature = signature;
+            const requestId = ++vocabularyRequestId;
+            const candidates = extractVocabularyCandidates(articles);
+            status.textContent = '正在查詢即時詞義…';
+            container.innerHTML = '<p class="text-xs text-gray-500">正在查詢新聞中的單字…</p>';
+
+            const results = await Promise.all(candidates.slice(0, 12).map(async candidate => {
+                try {
+                    const definition = await fetchWordDefinition(candidate.word);
+                    return definition ? { ...candidate, ...definition } : null;
+                } catch {
+                    return null;
+                }
+            }));
+            if (requestId !== vocabularyRequestId) return;
+            const entries = results.filter(Boolean).slice(0, 5);
+
+            const matches = await Promise.all(entries.slice(0, 5).map(async entry => {
+                try {
+                    return { ...entry, meaning: await translateNewsText(entry.definition, 6000) };
+                } catch {
+                    return { ...entry, meaning: entry.definition };
+                }
+            }));
+            if (requestId !== vocabularyRequestId) return;
+            if (!matches.length) {
+                const fallback = candidates.slice(0, 5);
+                status.textContent = fallback.length ? `已擷取 ${fallback.length} 個新聞單字 · 詞義服務未連線` : '目前新聞沒有可用單字';
+                container.innerHTML = fallback.length ? fallback.map(entry => `
+                    <a href="${escapeHtml(entry.article.url)}" target="_blank" rel="noopener noreferrer" class="block min-w-0 p-3 rounded-lg bg-gray-950/70 border border-gray-800 hover:border-gray-600 transition">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-sm font-semibold text-white">${escapeHtml(entry.word)}</span>
+                            <span class="shrink-0 text-[10px] font-mono text-gray-400 border border-gray-700 rounded px-1.5 py-0.5">待查釋義</span>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-400">字典服務暫時沒有回應。</p>
+                        <p class="mt-2 text-[10px] text-gray-500 truncate">${entry.article.sourceName} · ${escapeHtml(entry.article.originalTitle || entry.article.title)}</p>
+                    </a>
+                `).join('') : '<p class="text-xs text-gray-500">目前新聞沒有可用單字。</p>';
+                return;
+            }
+
+            status.textContent = `找到 ${matches.length} 個新聞單字`;
+            container.innerHTML = matches.map(entry => `
+                <a href="${escapeHtml(entry.article.url)}" target="_blank" rel="noopener noreferrer" class="block min-w-0 p-3 rounded-lg bg-gray-950/70 border border-gray-800 hover:border-gray-600 transition">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-sm font-semibold text-white">${escapeHtml(entry.word)}</span>
+                        <span class="shrink-0 text-[10px] font-mono text-amber-300 border border-amber-900/70 rounded px-1.5 py-0.5">${escapeHtml(entry.partOfSpeech)}</span>
+                    </div>
+                    <p class="mt-1 text-xs text-gray-300">${escapeHtml(entry.meaning)}</p>
+                    <p class="mt-2 text-[10px] text-gray-500 truncate">${entry.article.sourceName} · ${escapeHtml(entry.article.originalTitle || entry.article.title)}</p>
+                </a>
+            `).join('');
         }
 
         function openSnapshotDatabase() {

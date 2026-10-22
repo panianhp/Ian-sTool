@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#172722">
+    <title>冒險桌 | D&D 5e Campaign Console</title>
+    <style>
+        :root {
+            --night: #172722;
+            --night-2: #21362f;
+            --paper: #f0efe7;
+            --sheet: #faf9f3;
+            --ink: #22352f;
+            --muted: #77817a;
+            --rule: #d9ddd2;
+            --moss: #557e68;
+            --gold: #dfbd6c;
+            --red: #b85f49;
+            --blue: #658ba0;
+            --shadow: 0 12px 32px rgba(21, 38, 31, .07);
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; min-height: 100vh; color: var(--ink); background: var(--paper); font-family: "Segoe UI", "Microsoft JhengHei", sans-serif; }
+        button, input, select, textarea { font: inherit; }
+        button { cursor: pointer; }
+        .app { min-height: 100vh; display: grid; grid-template-columns: 226px minmax(0, 1fr); }
+        .sidebar { position: sticky; top: 0; display: flex; height: 100vh; flex-direction: column; padding: 23px 15px 15px; color: #eef0e8; background: var(--night); }
+        .brand { display: flex; align-items: center; gap: 11px; padding: 0 8px 26px; }
+        .brand-mark { display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid #a9a878; border-radius: 50%; color: var(--gold); font: 19px Georgia, serif; }
+        .brand-name { font: 600 16px Georgia, serif; letter-spacing: .2px; }
+        .brand-caption { margin-top: 4px; color: #a7b4a9; font-size: 9px; }
+        .campaign-label { margin: 0 9px 8px; color: #95a59a; font-size: 9px; font-weight: 700; }
+        .campaign-select { width: 100%; padding: 10px 9px; border: 1px solid #40564b; border-radius: 4px; color: #f2f1e7; background: #21362f; font-size: 12px; }
+        .nav-label { margin: 27px 9px 9px; color: #819087; font-size: 9px; font-weight: 700; }
+        .nav { display: grid; gap: 3px; }
+        .nav-button { display: flex; align-items: center; gap: 11px; min-height: 42px; padding: 0 11px; border: 0; border-radius: 4px; color: #bdc7be; background: transparent; text-align: left; font-size: 12px; transition: background .18s, color .18s; }
+        .nav-button:hover { color: white; background: #263d34; }
+        .nav-button.active { color: #fff; background: #344d40; box-shadow: inset 2px 0 var(--gold); }
+        .nav-glyph { display: inline-grid; width: 18px; place-items: center; color: var(--gold); font: 16px Georgia, serif; }
+        .sidebar-bottom { margin-top: auto; padding: 15px 9px 2px; border-top: 1px solid #33463d; }
+        .save-indicator { display: flex; align-items: center; gap: 7px; color: #adc2b1; font-size: 10px; }
+        .save-dot { width: 7px; height: 7px; border-radius: 50%; background: #91b68c; }
+        .local-note { margin-top: 8px; color: #87968c; font-size: 9px; line-height: 1.6; }
+        .main { min-width: 0; }
+        .topbar { position: sticky; top: 0; z-index: 5; display: flex; min-height: 67px; align-items: center; justify-content: space-between; gap: 16px; padding: 0 clamp(19px, 3.1vw, 46px); border-bottom: 1px solid var(--rule); background: rgba(250, 249, 243, .95); backdrop-filter: blur(12px); }
+        .crumb { color: var(--muted); font-size: 11px; }
+        .top-actions { display: flex; align-items: center; gap: 9px; }
+        .session-chip { display: flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid var(--rule); border-radius: 4px; color: #536159; font-size: 10px; }
+        .session-chip span:first-child { color: var(--red); }
+        .icon-action { width: 35px; height: 35px; border: 1px solid var(--rule); border-radius: 4px; color: var(--ink); background: var(--sheet); font-size: 16px; }
+        .icon-action:hover { background: #e8ebdf; }
+        .content { width: min(1440px, 100%); margin: 0 auto; padding: 32px clamp(18px, 3.1vw, 46px) 54px; }
+        .view { display: none; animation: enter .24s ease both; }
+        .view.active { display: block; }
+        @keyframes enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .page-heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 21px; }
+        .kicker { margin: 0 0 7px; color: #718277; font-size: 9px; font-weight: 800; }
+        h1, h2, h3, p { margin-top: 0; }
+        h1 { margin-bottom: 0; color: var(--ink); font: 600 30px/1.15 Georgia, "Microsoft JhengHei", serif; }
+        .heading-copy { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+        .button { min-height: 36px; padding: 0 12px; border: 1px solid var(--rule); border-radius: 4px; color: var(--ink); background: var(--sheet); font-size: 11px; font-weight: 650; transition: background .15s, transform .15s; }
+        .button:hover { transform: translateY(-1px); background: #e9ede3; }
+        .button-primary { border-color: var(--night); color: white; background: var(--night); }
+        .button-primary:hover { background: #304b3f; }
+        .button-gold { border-color: #d8b65e; color: #24392d; background: var(--gold); }
+        .button-danger { border-color: #e5c7bd; color: #a44e38; background: #fff8f5; }
+        .map-scene { position: relative; display: flex; min-height: 233px; align-items: end; overflow: hidden; padding: 27px 29px; border-radius: 5px; color: #f7f1dc; background: #253c34; isolation: isolate; }
+        .map-scene::before { position: absolute; z-index: -1; inset: 0; content: ""; opacity: .7; background: repeating-radial-gradient(ellipse at 78% 25%, transparent 0 22px, rgba(214, 207, 165, .15) 23px 24px, transparent 25px 43px); }
+        .map-scene::after { position: absolute; z-index: -1; inset: 0; content: ""; background: linear-gradient(90deg, rgba(15, 31, 26, .9) 0%, rgba(18, 37, 30, .65) 45%, rgba(20, 40, 31, .1) 100%); }
+        .map-lines { position: absolute; z-index: -1; top: 0; right: 0; width: 61%; height: 100%; opacity: .6; }
+        .map-lines path { fill: none; stroke: #d2c990; stroke-width: 1; stroke-dasharray: 3 5; }
+        .map-lines .river { stroke: #76a8a0; stroke-width: 4; stroke-dasharray: none; opacity: .85; }
+        .map-lines circle { fill: var(--gold); stroke: #293d32; stroke-width: 5; }
+        .map-compass { position: absolute; top: 18px; right: 22px; display: grid; width: 45px; height: 45px; place-items: center; border: 1px solid rgba(231, 218, 167, .6); border-radius: 50%; color: var(--gold); font: 19px Georgia, serif; }
+        .map-copy { max-width: 520px; }
+        .map-copy .kicker { color: #d8c47e; }
+        .map-copy h2 { margin: 0; color: #fff8e6; font: 600 31px/1.15 Georgia, "Microsoft JhengHei", serif; }
+        .map-copy p { max-width: 480px; margin: 9px 0 16px; color: #d0dbce; font-size: 11px; line-height: 1.7; }
+        .map-actions { display: flex; gap: 8px; }
+        .map-actions .button:not(.button-gold) { border-color: #809085; color: white; background: #2b4438; }
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); margin: 0 0 22px; border-bottom: 1px solid var(--rule); }
+        .stat { padding: 15px 16px 15px 0; }
+        .stat + .stat { padding-left: 17px; border-left: 1px solid var(--rule); }
+        .stat-label { color: var(--muted); font-size: 10px; }
+        .stat-value { margin-top: 6px; font: 600 24px Georgia, serif; }
+        .stat-detail { margin-top: 3px; color: #879189; font-size: 9px; }
+        .home-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(260px, .8fr); gap: 25px; }
+        .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 13px; }
+        .section-head h2 { margin: 0; font-size: 13px; }
+        .section-head p { margin: 4px 0 0; color: var(--muted); font-size: 10px; }
+        .text-link { padding: 0; border: 0; color: #587763; background: transparent; font-size: 10px; font-weight: 700; }
+        .session-block { padding: 18px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+        .session-meta { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 9px; }
+        .session-block h3 { margin: 8px 0 6px; font: 600 18px Georgia, serif; }
+        .session-block p { margin: 0; color: #68766d; font-size: 11px; line-height: 1.65; }
+        .beat-list { display: grid; gap: 0; margin: 18px 0 0; padding: 0; list-style: none; }
+        .beat { display: grid; grid-template-columns: 18px 1fr; gap: 10px; padding: 8px 0; color: #5f6e65; font-size: 10px; }
+        .beat-index { color: #a08b51; font: 11px Georgia, serif; }
+        .quiet-panel { padding: 17px; border: 1px solid var(--rule); border-radius: 5px; background: rgba(250, 249, 243, .78); }
+        .quiet-panel + .quiet-panel { margin-top: 13px; }
+        .party-mini { display: grid; gap: 10px; }
+        .party-mini-row { display: grid; grid-template-columns: 29px minmax(0, 1fr) auto; align-items: center; gap: 9px; }
+        .avatar { display: grid; width: 29px; height: 29px; place-items: center; border-radius: 50%; color: #f7f5e9; background: var(--moss); font: 13px Georgia, serif; }
+        .avatar.gold { color: #453916; background: #e6d18e; }
+        .avatar.red { background: #b8765d; }
+        .avatar.blue { background: #7193a0; }
+        .party-name { overflow: hidden; font-size: 10px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+        .party-sub { margin-top: 3px; color: var(--muted); font-size: 9px; }
+        .hp-value { color: #54665c; font: 12px Georgia, serif; white-space: nowrap; }
+        .hp-track { height: 4px; margin-top: 6px; overflow: hidden; border-radius: 9px; background: #e3e5dc; }
+        .hp-fill { height: 100%; border-radius: inherit; background: #648d70; }
+        .hp-fill.low { background: var(--red); }
+        .activity-row { display: grid; grid-template-columns: 12px 1fr; gap: 9px; color: #69776d; font-size: 10px; line-height: 1.55; }
+        .activity-row + .activity-row { margin-top: 11px; }
+        .activity-marker { width: 6px; height: 6px; margin-top: 4px; border: 1px solid #b4904b; border-radius: 50%; }
+        .roster-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+        .character { padding: 16px; border: 1px solid var(--rule); border-radius: 5px; background: var(--sheet); box-shadow: 0 5px 16px rgba(25, 44, 35, .04); }
+        .character-head { display: flex; align-items: center; gap: 11px; }
+        .character-head .avatar { width: 40px; height: 40px; font-size: 17px; }
+        .character-head h3 { margin: 0; font: 600 15px Georgia, serif; }
+        .character-head p { margin: 4px 0 0; color: var(--muted); font-size: 10px; }
+        .character-menu { margin-left: auto; border: 0; color: var(--muted); background: transparent; font-size: 16px; }
+        .character-stats { display: flex; gap: 16px; margin: 16px 0 13px; padding: 10px 0; border-top: 1px solid #e5e7df; border-bottom: 1px solid #e5e7df; }
+        .char-stat { color: var(--muted); font-size: 9px; }
+        .char-stat strong { display: block; margin-top: 4px; color: var(--ink); font: 15px Georgia, serif; }
+        .health-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .health-row .hp-track { flex: 1; margin: 0; }
+        .hp-controls { display: flex; gap: 4px; }
+        .small-control { width: 25px; height: 25px; border: 1px solid var(--rule); border-radius: 3px; color: #52685b; background: #fff; }
+        .encounter-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 17px; align-items: start; }
+        .encounter-sheet { overflow: hidden; border: 1px solid var(--rule); border-radius: 5px; background: var(--sheet); }
+        .encounter-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; border-bottom: 1px solid var(--rule); }
+        .encounter-title h2 { margin: 0; font: 600 17px Georgia, serif; }
+        .encounter-title p { margin: 5px 0 0; color: var(--muted); font-size: 10px; }
+        .combat-head, .combat-row { display: grid; grid-template-columns: 32px minmax(120px, 1.2fr) 74px 95px 80px; align-items: center; gap: 9px; padding: 10px 15px; }
+        .combat-head { color: var(--muted); background: #f0f1e9; font-size: 9px; font-weight: 700; }
+        .combat-row { min-height: 54px; border-top: 1px solid #eaebe4; font-size: 10px; }
+        .combat-row.current { background: #f6f1de; box-shadow: inset 3px 0 var(--gold); }
+        .initiative-number { display: grid; width: 26px; height: 26px; place-items: center; border: 1px solid #d8cfac; border-radius: 50%; color: #716039; background: #f8f4e3; font: 12px Georgia, serif; }
+        .combatant-name { font-weight: 700; }
+        .combatant-kind { margin-top: 3px; color: var(--muted); font-size: 9px; }
+        .combat-hp { color: #63746a; }
+        .combat-actions { display: flex; justify-content: flex-end; gap: 4px; }
+        .turn-tag { color: #9c7b30; font-size: 9px; font-weight: 700; }
+        .dice-panel { padding: 16px; border: 1px solid var(--rule); border-radius: 5px; background: var(--sheet); }
+        .dice-panel h2 { margin: 0; font-size: 13px; }
+        .dice-panel > p { margin: 5px 0 14px; color: var(--muted); font-size: 10px; }
+        .dice-settings { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+        .field-label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 9px; }
+        .compact-input { width: 100%; height: 33px; padding: 0 8px; border: 1px solid var(--rule); border-radius: 3px; color: var(--ink); background: white; font-size: 11px; }
+        .dice-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+        .die-button { min-height: 34px; border: 1px solid #d8d9cd; border-radius: 3px; color: #385747; background: #f2f2e9; font: 12px Georgia, serif; }
+        .die-button:hover { border-color: #9eab97; background: #e8ecdf; }
+        .roll-output { min-height: 58px; margin-top: 11px; padding: 11px; border-left: 2px solid var(--gold); background: #f3f0e3; }
+        .roll-total { font: 600 20px Georgia, serif; }
+        .roll-detail { margin-top: 4px; color: var(--muted); font-size: 9px; line-height: 1.45; }
+        .roll-history { display: grid; gap: 7px; max-height: 150px; overflow: auto; margin: 11px 0 0; padding: 0; list-style: none; }
+        .roll-history li { display: flex; justify-content: space-between; gap: 10px; color: #748078; font-size: 9px; }
+        .compendium-layout { display: grid; grid-template-columns: minmax(250px, .76fr) minmax(0, 1.4fr); gap: 18px; align-items: start; }
+        .upload-zone { display: grid; min-height: 215px; place-items: center; padding: 22px; border: 1px dashed #9aa89c; border-radius: 5px; background: #e9ece3; text-align: center; }
+        .upload-mark { display: grid; width: 40px; height: 40px; place-items: center; margin: 0 auto 11px; border: 1px solid #adbaaa; border-radius: 50%; color: #587763; font: 20px Georgia, serif; }
+        .upload-zone h2 { margin: 0; font-size: 12px; }
+        .upload-zone p { max-width: 250px; margin: 6px auto 13px; color: var(--muted); font-size: 10px; line-height: 1.6; }
+        .book-list { display: grid; gap: 7px; margin-top: 14px; }
+        .book-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 10px; border: 1px solid var(--rule); border-radius: 4px; background: var(--sheet); }
+        .book-type { display: grid; width: 27px; height: 30px; place-items: center; color: #705e31; background: #eee6cd; font: 9px Georgia, serif; }
+        .book-name { overflow: hidden; font-size: 10px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+        .book-meta { margin-top: 3px; color: var(--muted); font-size: 9px; }
+        .search-box { display: flex; gap: 7px; margin: 0 0 12px; }
+        .search-box input { flex: 1; min-width: 0; height: 38px; padding: 0 10px; border: 1px solid var(--rule); border-radius: 4px; background: var(--sheet); font-size: 11px; }
+        .search-results { display: grid; gap: 8px; }
+        .search-result { padding: 13px; border: 1px solid var(--rule); border-radius: 4px; background: var(--sheet); }
+        .result-book { margin-bottom: 6px; color: #68806f; font-size: 9px; }
+        .result-snippet { color: #43564a; font-size: 10px; line-height: 1.7; }
+        mark { padding: 0 2px; color: #4d3e16; background: #f0dfa3; }
+        .empty-state { padding: 28px 15px; color: var(--muted); text-align: center; font-size: 10px; line-height: 1.7; }
+        .journal-layout { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(230px, .7fr); gap: 18px; }
+        .journal-editor { width: 100%; min-height: 370px; padding: 19px; border: 1px solid var(--rule); border-radius: 5px; outline: none; resize: vertical; color: #37493d; background: repeating-linear-gradient(to bottom, var(--sheet) 0, var(--sheet) 31px, #e8e8df 32px); font: 12px/2 Georgia, "Microsoft JhengHei", serif; }
+        .journal-editor:focus { border-color: #9fac93; }
+        .journal-aside { padding: 17px; border: 1px solid var(--rule); border-radius: 5px; background: var(--sheet); }
+        .journal-aside h2 { margin: 0 0 11px; font-size: 12px; }
+        .journal-prompt { padding: 10px 0; border-top: 1px solid #e6e8df; color: #6a786d; font-size: 10px; line-height: 1.6; }
+        .modal { width: min(460px, calc(100% - 24px)); padding: 0; border: 1px solid var(--rule); border-radius: 6px; color: var(--ink); background: var(--sheet); box-shadow: 0 20px 70px rgba(12, 30, 23, .3); }
+        .modal::backdrop { background: rgba(16, 32, 25, .56); backdrop-filter: blur(2px); }
+        .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 15px 17px; border-bottom: 1px solid var(--rule); }
+        .modal-head h2 { margin: 0; font: 600 16px Georgia, serif; }
+        .modal-form { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; padding: 16px 17px; }
+        .form-field { display: grid; gap: 5px; }
+        .form-field.full { grid-column: 1 / -1; }
+        .form-field label { color: var(--muted); font-size: 9px; font-weight: 700; }
+        .form-field input, .form-field select { width: 100%; height: 35px; padding: 0 8px; border: 1px solid var(--rule); border-radius: 3px; color: var(--ink); background: white; font-size: 11px; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 7px; padding: 0 17px 16px; }
+        .toast { position: fixed; right: 18px; bottom: 18px; z-index: 20; padding: 10px 14px; border-radius: 4px; color: #f9f8ed; background: var(--night); box-shadow: var(--shadow); font-size: 10px; opacity: 0; transform: translateY(6px); pointer-events: none; transition: .2s; }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        @media (max-width: 980px) {
+            .app { grid-template-columns: 70px minmax(0, 1fr); }
+            .sidebar { align-items: center; padding-right: 9px; padding-left: 9px; }
+            .brand { padding: 0 0 25px; }
+            .brand-copy, .campaign-label, .campaign-select, .nav-label, .nav-text, .sidebar-bottom { display: none; }
+            .nav { width: 100%; margin-top: 12px; }
+            .nav-button { justify-content: center; padding: 0; font-size: 16px; }
+            .nav-glyph { width: auto; font-size: 18px; }
+            .home-grid { grid-template-columns: 1fr 280px; }
+        }
+        @media (max-width: 720px) {
+            .app { display: block; padding-bottom: 58px; }
+            .sidebar { position: fixed; top: auto; right: 0; bottom: 0; left: 0; z-index: 10; display: block; width: 100%; height: 56px; padding: 5px 8px; border-top: 1px solid #40564b; }
+            .brand, .brand-copy, .campaign-label, .campaign-select, .nav-label, .sidebar-bottom { display: none; }
+            .nav { display: flex; height: 100%; justify-content: space-around; gap: 2px; margin: 0; }
+            .nav-button { display: grid; min-width: 52px; min-height: 46px; grid-template-rows: 20px 12px; justify-items: center; gap: 2px; padding: 4px 3px; font-size: 8px; }
+            .nav-button.active { box-shadow: inset 0 2px var(--gold); }
+            .nav-glyph { font-size: 15px; }
+            .nav-text { display: block; }
+            .topbar { min-height: 56px; padding: 0 15px; }
+            .content { padding: 23px 15px 35px; }
+            .page-heading { align-items: flex-start; }
+            h1 { font-size: 25px; }
+            .map-scene { min-height: 240px; padding: 20px; }
+            .map-lines { width: 100%; opacity: .43; }
+            .map-copy h2 { font-size: 26px; }
+            .map-compass { width: 34px; height: 34px; top: 12px; right: 13px; font-size: 15px; }
+            .stats { grid-template-columns: 1fr 1fr; }
+            .stat { padding: 12px 9px 12px 0; }
+            .stat + .stat { padding-left: 11px; }
+            .stat:nth-child(3) { padding-left: 0; border-top: 1px solid var(--rule); border-left: 0; }
+            .stat:nth-child(4) { border-top: 1px solid var(--rule); }
+            .home-grid, .encounter-layout, .compendium-layout, .journal-layout { grid-template-columns: 1fr; }
+            .combat-head, .combat-row { grid-template-columns: 27px minmax(92px, 1fr) 52px 68px 56px; gap: 5px; padding-right: 8px; padding-left: 8px; }
+            .combat-head { font-size: 8px; }
+            .combat-row { font-size: 9px; }
+            .combat-hp { font-size: 8px; }
+            .small-control { width: 23px; height: 23px; }
+            .session-chip { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <aside class="sidebar">
+            <div class="brand"><span class="brand-mark">A</span><div class="brand-copy"><div class="brand-name">冒險桌</div><div class="brand-caption">CAMPAIGN CONSOLE</div></div></div>
+            <label class="campaign-label" for="campaignSelect">目前戰役</label>
+            <select class="campaign-select" id="campaignSelect" aria-label="選擇戰役"></select>
+            <div class="nav-label">遊戲桌</div>
+            <nav class="nav" aria-label="遊戲桌導覽">
+                <button class="nav-button active" data-view="overview"><span class="nav-glyph">⌂</span><span class="nav-text">冒險總覽</span></button>
+                <button class="nav-button" data-view="party"><span class="nav-glyph">♙</span><span class="nav-text">冒險隊伍</span></button>
+                <button class="nav-button" data-view="encounter"><span class="nav-glyph">⚔</span><span class="nav-text">遭遇與先攻</span></button>
+                <button class="nav-button" data-view="compendium"><span class="nav-glyph">▤</span><span class="nav-text">規則書庫</span></button>
+                <button class="nav-button" data-view="journal"><span class="nav-glyph">✎</span><span class="nav-text">冒險日誌</span></button>
+            </nav>
+            <div class="sidebar-bottom"><div class="save-indicator"><span class="save-dot"></span><span id="saveStatus">儲存於此裝置</span></div><div class="local-note">戰役、隊伍與筆記保存在此瀏覽器。匯入的書籍也只留在本機。</div></div>
+        </aside>
+
+        <main class="main">
+            <header class="topbar">
+                <div class="crumb"><span id="crumbCampaign">灰燼邊境</span>　/　<span id="crumbView">冒險總覽</span></div>
+                <div class="top-actions"><span class="session-chip"><span>●</span><span id="sessionLabel">第 04 場 · 冒險進行中</span></span><button class="icon-action" id="newCampaignButton" title="建立新戰役" aria-label="建立新戰役">＋</button></div>
+            </header>
+            <div class="content">
+                <section class="view active" id="view-overview">
+                    <div class="page-heading"><div><p class="kicker">DUNGEONS &amp; DRAGONS · FIFTH EDITION</p><h1>冒險總覽</h1><p class="heading-copy">整理這場冒險的進度、隊伍狀態和桌邊工具。</p></div></div>
+                    <section class="map-scene" aria-label="灰燼邊境冒險地圖">
+                        <svg class="map-lines" viewBox="0 0 700 260" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><path d="M260 5c45 38-30 59 20 91s-23 61 24 94-13 43 21 75"/><path d="M315 -10c49 40-21 67 32 101s-17 55 32 92-6 48 30 82"/><path d="M365 -8c42 36 1 54 45 91s-8 66 37 98 6 58 43 83"/><path d="M430 -10c52 44 8 65 59 101s15 61 56 93 32 46 62 76"/><path d="M510 -5c37 35 30 63 69 96s36 58 74 90 36 51 65 74"/><path d="M0 150c91-37 113-9 196-45s133-31 193-75 87-28 141 3"/><path d="M7 200c88-34 132-8 214-43s137-19 200-62 102-36 176-6"/><path class="river" d="M662-8c-49 32-103 43-115 83s-71 53-78 85 21 44-20 106"/><circle cx="449" cy="137" r="5"/><circle cx="251" cy="98" r="4"/><circle cx="562" cy="70" r="4"/></svg>
+                        <div class="map-compass" aria-hidden="true">✦</div>
+                        <div class="map-copy"><p class="kicker">目前章節 · 石橋鎮以北</p><h2 id="campaignTitle">灰燼邊境</h2><p id="campaignDescription">黑松林深處傳來一座早已封閉的鐘樓聲。村民說，每敲響一次，林間就少一條路。</p><div class="map-actions"><button class="button button-gold" data-open-view="encounter">進入遭遇桌　→</button><button class="button" data-open-view="journal">記下線索</button></div></div>
+                    </section>
+                    <section class="stats" aria-label="戰役狀態"><div class="stat"><div class="stat-label">冒險場次</div><div class="stat-value" id="sessionCount">04</div><div class="stat-detail">目前戰役</div></div><div class="stat"><div class="stat-label">隊伍人數</div><div class="stat-value" id="partyCount">3</div><div class="stat-detail">位冒險者</div></div><div class="stat"><div class="stat-label">規則書</div><div class="stat-value" id="bookCount">0</div><div class="stat-detail">本機匯入</div></div><div class="stat"><div class="stat-label">遭遇狀態</div><div class="stat-value" id="encounterStatus" style="font:600 16px 'Segoe UI',sans-serif">待命</div><div class="stat-detail">先攻與回合追蹤</div></div></section>
+                    <div class="home-grid">
+                        <section><div class="section-head"><div><h2>本場冒險</h2><p>GM 工作台 · 僅供本團使用</p></div><button class="text-link" data-open-view="journal">開啟日誌 →</button></div><div class="session-block"><div class="session-meta"><span id="sceneLabel">第 04 場 · 黑松林</span><span>進行中</span></div><h3 id="sceneTitle">鐘聲不該響起</h3><p>在鎮民找到新的林間路徑之前，先弄清楚鐘聲從哪裡來。把玩家角色加入遭遇，擲先攻並開始追蹤回合。</p></div><ol class="beat-list"><li class="beat"><span class="beat-index">01</span><span>石橋鎮的獵人帶回一段燒焦的繩索。</span></li><li class="beat"><span class="beat-index">02</span><span>黑松林裡出現不屬於任何人的腳印。</span></li><li class="beat"><span class="beat-index">03</span><span>鐘聲第三次響起時，林中小徑會改變方向。</span></li></ol></section>
+                        <aside><section class="quiet-panel"><div class="section-head"><div><h2>冒險隊伍</h2><p>即時生命值</p></div><button class="text-link" data-open-view="party">隊伍 →</button></div><div class="party-mini" id="partyMini"></div></section><section class="quiet-panel"><div class="section-head"><div><h2>桌邊工具</h2><p>隨時可用</p></div></div><div class="activity-row"><span class="activity-marker"></span><span>骰子與先攻計算器已就緒。</span></div><div class="activity-row"><span class="activity-marker"></span><span>匯入規則書後，可在書庫全文搜尋規則。</span></div></section></aside>
+                    </div>
+                </section>
+
+                <section class="view" id="view-party">
+                    <div class="page-heading"><div><p class="kicker">CHARACTER SHEETS</p><h1>冒險隊伍</h1><p class="heading-copy">追蹤角色等級、防護等級與生命值。</p></div><button class="button button-primary" id="addCharacterButton">＋ 新增角色</button></div>
+                    <div class="roster-grid" id="rosterGrid"></div>
+                </section>
+
+                <section class="view" id="view-encounter">
+                    <div class="page-heading"><div><p class="kicker">COMBAT TRACKER</p><h1>遭遇與先攻</h1><p class="heading-copy">擲先攻、依序輪流，快速調整場上生命值。</p></div><button class="button button-primary" id="addCombatantButton">＋ 新增參戰者</button></div>
+                    <div class="encounter-layout"><section class="encounter-sheet"><div class="encounter-title"><div><h2 id="encounterTitle">黑松林 · 林間遭遇</h2><p id="roundLabel">尚未擲先攻</p></div><div style="display:flex;gap:6px"><button class="button" id="resetEncounterButton">重設</button><button class="button button-gold" id="rollInitiativeButton">擲先攻</button></div></div><div class="combat-head"><span>先攻</span><span>參戰者</span><span>狀態</span><span>生命值</span><span></span></div><div id="combatList"></div><div style="padding:13px 15px;border-top:1px solid var(--rule);display:flex;justify-content:flex-end"><button class="button button-primary" id="nextTurnButton" disabled>下一回合　→</button></div></section><aside class="dice-panel"><h2>快速擲骰</h2><p>擲骰結果只記錄在此裝置。</p><div class="dice-settings"><label><span class="field-label">骰數</span><input class="compact-input" id="diceCount" type="number" min="1" max="20" value="1"></label><label><span class="field-label">調整值</span><input class="compact-input" id="diceModifier" type="number" min="-50" max="50" value="0"></label></div><div class="dice-grid" id="diceButtons"><button class="die-button" data-sides="4">d4</button><button class="die-button" data-sides="6">d6</button><button class="die-button" data-sides="8">d8</button><button class="die-button" data-sides="10">d10</button><button class="die-button" data-sides="12">d12</button><button class="die-button" data-sides="20">d20</button><button class="die-button" data-sides="100">d100</button><button class="die-button" data-sides="20" data-mode="advantage" title="優勢：擲兩次取高">優勢</button></div><div class="roll-output" id="rollOutput"><div class="roll-total">準備擲骰</div><div class="roll-detail">選擇骰型開始</div></div><ul class="roll-history" id="rollHistory"></ul></aside></div>
+                </section>
+
+                <section class="view" id="view-compendium">
+                    <div class="page-heading"><div><p class="kicker">YOUR BOOKS · YOUR TABLE</p><h1>規則書庫</h1><p class="heading-copy">匯入你提供的書籍，再從本機文字內容搜尋規則。</p></div></div>
+                    <div class="compendium-layout"><div><section class="upload-zone"><div><span class="upload-mark">＋</span><h2>加入遊戲書或團務參考資料</h2><p>支援 PDF、TXT、Markdown 與 JSON。內容只在這個瀏覽器解析與保存。</p><label class="button button-primary" for="bookInput">選擇檔案</label><input id="bookInput" type="file" accept=".pdf,.txt,.md,.markdown,.json,application/pdf,text/plain,application/json" multiple hidden><div id="uploadStatus" aria-live="polite" style="margin-top:8px;color:var(--muted);font-size:9px"></div></div></section><div class="section-head" style="margin:18px 0 0"><div><h2>已匯入</h2><p id="bookListCount">本機書庫</p></div></div><div class="book-list" id="bookList"></div></div><section><div class="section-head"><div><h2>搜尋書籍內容</h2><p>搜尋結果會標示書名與頁碼／段落。</p></div></div><form class="search-box" id="bookSearchForm"><input id="bookSearchInput" type="search" placeholder="例如：專注、掩護、困難地形" aria-label="搜尋匯入的規則書"><button class="button button-primary" type="submit">搜尋</button></form><div id="bookSearchResults" class="search-results"><div class="empty-state">匯入書籍後，輸入關鍵字即可搜尋已載入內容。<br>此工具不會預先填入未提供的書籍文字。</div></div></section></div>
+                </section>
+
+                <section class="view" id="view-journal">
+                    <div class="page-heading"><div><p class="kicker">SESSION NOTES</p><h1>冒險日誌</h1><p class="heading-copy">記下線索、NPC、戰利品與下次要追問的事。</p></div><span class="session-chip"><span>✎</span><span id="journalSessionLabel">第 04 場</span></span></div>
+                    <div class="journal-layout"><textarea class="journal-editor" id="journalEditor" aria-label="冒險日誌內容" placeholder="今天的冒險發生了什麼？"></textarea><aside class="journal-aside"><h2>記錄提示</h2><div class="journal-prompt">重要線索<br>哪些細節可能還沒被玩家注意到？</div><div class="journal-prompt">NPC 與地點<br>誰提供了資訊？隊伍承諾了什麼？</div><div class="journal-prompt">下次開場<br>從哪個畫面或選擇接回故事？</div><div class="journal-prompt">戰利品與進度<br>物品、金幣、經驗或里程碑。</div></aside></div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <dialog class="modal" id="characterDialog"><form id="characterForm"><div class="modal-head"><h2 id="characterDialogTitle">新增角色</h2><button type="button" class="icon-action" data-close-dialog="characterDialog" aria-label="關閉">×</button></div><div class="modal-form"><label class="form-field full"><span>角色名稱</span><input name="name" maxlength="50" required placeholder="例如：艾拉"></label><label class="form-field"><span>職業</span><input name="className" maxlength="40" required placeholder="遊俠"></label><label class="form-field"><span>等級</span><input name="level" type="number" min="1" max="20" value="1" required></label><label class="form-field"><span>目前 HP</span><input name="hp" type="number" min="0" max="999" value="10" required></label><label class="form-field"><span>最大 HP</span><input name="maxHp" type="number" min="1" max="999" value="10" required></label><label class="form-field"><span>防護等級 AC</span><input name="ac" type="number" min="1" max="40" value="10" required></label><label class="form-field"><span>先攻加值</span><input name="initiativeBonus" type="number" min="-10" max="20" value="0" required></label></div><div class="modal-actions"><button type="button" class="button" data-close-dialog="characterDialog">取消</button><button type="submit" class="button button-primary">儲存角色</button></div></form></dialog>
+    <dialog class="modal" id="combatantDialog"><form id="combatantForm"><div class="modal-head"><h2>新增參戰者</h2><button type="button" class="icon-action" data-close-dialog="combatantDialog" aria-label="關閉">×</button></div><div class="modal-form"><label class="form-field full"><span>名稱</span><input name="name" maxlength="60" required placeholder="敵人、盟友或環境危險"></label><label class="form-field"><span>類型</span><select name="kind"><option>敵人</option><option>盟友</option><option>玩家角色</option></select></label><label class="form-field"><span>目前 HP</span><input name="hp" type="number" min="0" max="999" value="12" required></label><label class="form-field"><span>最大 HP</span><input name="maxHp" type="number" min="1" max="999" value="12" required></label><label class="form-field"><span>先攻加值</span><input name="initiativeBonus" type="number" min="-10" max="20" value="0" required></label></div><div class="modal-actions"><button type="button" class="button" data-close-dialog="combatantDialog">取消</button><button type="submit" class="button button-primary">加入遭遇</button></div></form></dialog>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script type="module">
+        const SAVE_KEY = 'adventure-table-campaigns-v1';
+        const BOOK_DB = 'adventure-table-books-v1';
+        const BOOK_STORE = 'books';
+        const colors = ['green', 'gold', 'red', 'blue'];
+        const viewTitles = { overview: '冒險總覽', party: '冒險隊伍', encounter: '遭遇與先攻', compendium: '規則書庫', journal: '冒險日誌' };
+        const makeId = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        const makeCampaign = name => ({
+            id: makeId(), name, session: 4, sceneTitle: '鐘聲不該響起', scene: '黑松林', description: '黑松林深處傳來一座早已封閉的鐘樓聲。村民說，每敲響一次，林間就少一條路。',
+            journal: '【線索】石橋鎮的獵人帶回一段燒焦的繩索。\n\n【待查】鐘聲第三次響起時，林中小徑會改變方向。\n\n【下次開場】沿著不屬於任何人的腳印進入黑松林。',
+            party: [
+                { id: makeId(), name: '艾拉・苔溪', className: '森林巡林者', level: 4, hp: 27, maxHp: 32, ac: 15, initiativeBonus: 3 },
+                { id: makeId(), name: '布蘭・銅葉', className: '塑能法師', level: 4, hp: 18, maxHp: 24, ac: 13, initiativeBonus: 2 },
+                { id: makeId(), name: '羅雯・石脊', className: '戰鬥大師', level: 4, hp: 35, maxHp: 39, ac: 17, initiativeBonus: 1 }
+            ], combatants: [], round: 0, activeIndex: -1, started: false
+        });
+        let campaigns = readCampaigns();
+        let current = campaigns[0];
+        let editingCharacterId = null;
+        let bookCache = [];
+        let toastTimeout;
+
+        function readCampaigns() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
+                if (Array.isArray(saved) && saved.length && saved[0]?.party && Array.isArray(saved[0].party)) return saved;
+            } catch { /* 建立新的本機戰役 */ }
+            return [makeCampaign('灰燼邊境')];
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+        }
+
+        function save() {
+            try {
+                localStorage.setItem(SAVE_KEY, JSON.stringify(campaigns));
+                const status = document.getElementById('saveStatus');
+                status.textContent = `已儲存 ${new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}`;
+            } catch { showToast('瀏覽器儲存空間不足，請匯出或刪除部分資料'); }
+            renderAll();
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => toast.classList.remove('show'), 2300);
+        }
+
+        function switchView(view) {
+            document.querySelectorAll('.view').forEach(section => section.classList.toggle('active', section.id === `view-${view}`));
+            document.querySelectorAll('.nav-button').forEach(button => button.classList.toggle('active', button.dataset.view === view));
+            document.getElementById('crumbView').textContent = viewTitles[view] || viewTitles.overview;
+        }
+
+        function hpMarkup(hp, maxHp) {
+            const percentage = maxHp ? Math.max(0, Math.min(100, hp / maxHp * 100)) : 0;
+            return `<div class="hp-track"><div class="hp-fill ${percentage <= 25 ? 'low' : ''}" style="width:${percentage}%"></div></div>`;
+        }
+
+        function renderPartyMini() {
+            document.getElementById('partyMini').innerHTML = current.party.length ? current.party.map((character, index) => `
+                <div class="party-mini-row"><span class="avatar ${colors[index % colors.length]}">${escapeHtml(character.name.trim().slice(0, 1))}</span><div><div class="party-name">${escapeHtml(character.name)}</div><div class="party-sub">${escapeHtml(character.className)} · Lv ${character.level}${hpMarkup(character.hp, character.maxHp)}</div></div><span class="hp-value">${character.hp}/${character.maxHp}</span></div>`).join('') : '<div class="empty-state">尚未加入角色。</div>';
+        }
+
+        function renderRoster() {
+            document.getElementById('rosterGrid').innerHTML = current.party.length ? current.party.map((character, index) => `
+                <article class="character"><div class="character-head"><span class="avatar ${colors[index % colors.length]}">${escapeHtml(character.name.trim().slice(0, 1))}</span><div><h3>${escapeHtml(character.name)}</h3><p>${escapeHtml(character.className)} · 等級 ${character.level}</p></div><button class="character-menu" data-character-action="edit" data-id="${escapeHtml(character.id)}" title="編輯角色" aria-label="編輯 ${escapeHtml(character.name)}">⋯</button></div><div class="character-stats"><div class="char-stat">防護等級<strong>${character.ac}</strong></div><div class="char-stat">先攻加值<strong>${Number(character.initiativeBonus) >= 0 ? '+' : ''}${character.initiativeBonus}</strong></div><div class="char-stat">生命骰<strong>d${character.className === '戰鬥大師' ? 10 : character.className.includes('法師') ? 6 : 8}</strong></div></div><div class="health-row"><span class="hp-value">${character.hp} / ${character.maxHp} HP</span>${hpMarkup(character.hp, character.maxHp)}<div class="hp-controls"><button class="small-control" data-character-action="hp-down" data-id="${escapeHtml(character.id)}" aria-label="${escapeHtml(character.name)} HP 減少 1">−</button><button class="small-control" data-character-action="hp-up" data-id="${escapeHtml(character.id)}" aria-label="${escapeHtml(character.name)} HP 增加 1">＋</button></div></div><button class="text-link" style="margin-top:12px" data-character-action="remove" data-id="${escapeHtml(character.id)}">移出隊伍</button></article>`).join('') : '<div class="empty-state">隊伍尚未建立。新增第一位角色開始冒險。</div>';
+        }
+
+        function renderEncounter() {
+            const list = document.getElementById('combatList');
+            if (!current.combatants.length) {
+                list.innerHTML = '<div class="empty-state">遭遇桌目前是空的。新增參戰者，或先攻時自動加入全隊。</div>';
+            } else {
+                list.innerHTML = current.combatants.map((combatant, index) => `
+                    <div class="combat-row ${current.started && index === current.activeIndex ? 'current' : ''}"><span class="initiative-number">${combatant.initiative ?? '—'}</span><div><div class="combatant-name">${escapeHtml(combatant.name)}</div><div class="combatant-kind">${escapeHtml(combatant.kind)}</div></div><span>${current.started && index === current.activeIndex ? '<span class="turn-tag">現在</span>' : '待命'}</span><span class="combat-hp">${combatant.hp} / ${combatant.maxHp} HP</span><div class="combat-actions"><button class="small-control" data-combat-action="down" data-id="${escapeHtml(combatant.id)}" aria-label="${escapeHtml(combatant.name)} HP 減少 1">−</button><button class="small-control" data-combat-action="up" data-id="${escapeHtml(combatant.id)}" aria-label="${escapeHtml(combatant.name)} HP 增加 1">＋</button><button class="small-control" data-combat-action="remove" data-id="${escapeHtml(combatant.id)}" aria-label="移除 ${escapeHtml(combatant.name)}">×</button></div></div>`).join('');
+            }
+            document.getElementById('roundLabel').textContent = current.started ? `第 ${current.round} 回合 · ${current.combatants[current.activeIndex]?.name || ''} 的回合` : '尚未擲先攻';
+            document.getElementById('nextTurnButton').disabled = !current.started || current.combatants.length < 1;
+            document.getElementById('encounterStatus').textContent = current.started ? `第 ${current.round} 回合` : '待命';
+        }
+
+        function renderCampaignSelect() {
+            const select = document.getElementById('campaignSelect');
+            select.innerHTML = campaigns.map(campaign => `<option value="${escapeHtml(campaign.id)}">${escapeHtml(campaign.name)}</option>`).join('');
+            select.value = current.id;
+        }
+
+        function renderAll() {
+            document.getElementById('campaignTitle').textContent = current.name;
+            document.getElementById('campaignDescription').textContent = current.description;
+            document.getElementById('crumbCampaign').textContent = current.name;
+            document.getElementById('sessionLabel').textContent = `第 ${String(current.session).padStart(2, '0')} 場 · 冒險進行中`;
+            document.getElementById('sessionCount').textContent = String(current.session).padStart(2, '0');
+            document.getElementById('sceneLabel').textContent = `第 ${String(current.session).padStart(2, '0')} 場 · ${current.scene}`;
+            document.getElementById('sceneTitle').textContent = current.sceneTitle;
+            document.getElementById('journalSessionLabel').textContent = `第 ${String(current.session).padStart(2, '0')} 場`;
+            document.getElementById('partyCount').textContent = current.party.length;
+            document.getElementById('journalEditor').value = current.journal;
+            renderCampaignSelect();
+            renderPartyMini();
+            renderRoster();
+            renderEncounter();
+        }
+
+        function openCharacterDialog(character = null) {
+            editingCharacterId = character?.id || null;
+            const form = document.getElementById('characterForm');
+            form.reset();
+            document.getElementById('characterDialogTitle').textContent = character ? '編輯角色' : '新增角色';
+            if (character) Object.entries(character).forEach(([key, value]) => { if (form.elements[key]) form.elements[key].value = value; });
+            document.getElementById('characterDialog').showModal();
+        }
+
+        function rollDie(sides, mode = 'normal') {
+            const countInput = document.getElementById('diceCount');
+            const modifierInput = document.getElementById('diceModifier');
+            const count = Math.max(1, Math.min(20, Number(countInput.value) || 1));
+            const modifier = Math.max(-50, Math.min(50, Number(modifierInput.value) || 0));
+            const rolls = Array.from({ length: count }, () => {
+                if (mode !== 'advantage' || sides !== 20) return Math.floor(Math.random() * sides) + 1;
+                return Math.max(Math.floor(Math.random() * sides) + 1, Math.floor(Math.random() * sides) + 1);
+            });
+            const total = rolls.reduce((sum, value) => sum + value, 0) + modifier;
+            const expression = `${count}d${sides}${mode === 'advantage' ? ' 優勢' : ''}${modifier ? ` ${modifier > 0 ? '+' : '−'} ${Math.abs(modifier)}` : ''}`;
+            document.getElementById('rollOutput').innerHTML = `<div class="roll-total">${total}</div><div class="roll-detail">${escapeHtml(expression)}　·　${rolls.join('、')}${modifier ? `　+　${modifier}` : ''}</div>`;
+            const history = document.getElementById('rollHistory');
+            const entry = document.createElement('li');
+            entry.innerHTML = `<span>${escapeHtml(expression)}　(${rolls.join('、')})</span><strong>${total}</strong>`;
+            history.prepend(entry);
+            while (history.children.length > 8) history.lastElementChild.remove();
+        }
+
+        function openBookDatabase() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(BOOK_DB, 1);
+                request.onupgradeneeded = () => request.result.createObjectStore(BOOK_STORE, { keyPath: 'id' });
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function getBooks() {
+            const database = await openBookDatabase();
+            const books = await new Promise((resolve, reject) => {
+                const request = database.transaction(BOOK_STORE, 'readonly').objectStore(BOOK_STORE).getAll();
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+            database.close();
+            bookCache = books;
+            document.getElementById('bookCount').textContent = books.length;
+            document.getElementById('bookListCount').textContent = `${books.length} 本書籍 · 保存在此瀏覽器`;
+            document.getElementById('bookList').innerHTML = books.length ? books.map(book => `<div class="book-row"><span class="book-type">${escapeHtml(book.type.toUpperCase())}</span><div><div class="book-name" title="${escapeHtml(book.name)}">${escapeHtml(book.name)}</div><div class="book-meta">${book.sections.length} 個可搜尋段落 · ${new Date(book.importedAt).toLocaleDateString('zh-TW')}</div></div><button class="icon-action" data-book-remove="${escapeHtml(book.id)}" title="移除書籍" aria-label="移除 ${escapeHtml(book.name)}">×</button></div>`).join('') : '<div class="empty-state">書庫是空的。你提供遊戲書後，從這裡匯入。</div>';
+        }
+
+        async function extractPdfSections(file) {
+            const pdfjs = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.8.69/pdf.min.mjs');
+            pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.8.69/pdf.worker.min.mjs';
+            const documentPdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+            if (documentPdf.numPages > 1800) throw new Error('PDF 頁數超過 1800 頁，請分冊匯入。');
+            const sections = [];
+            for (let pageNumber = 1; pageNumber <= documentPdf.numPages; pageNumber++) {
+                const page = await documentPdf.getPage(pageNumber);
+                const text = (await page.getTextContent()).items.map(item => item.str).join(' ').trim();
+                if (text) sections.push({ label: `第 ${pageNumber} 頁`, text });
+            }
+            return sections;
+        }
+
+        async function importBook(file) {
+            if (file.size > 45 * 1024 * 1024) throw new Error(`${file.name} 超過 45 MB，請先壓縮或拆分。`);
+            const extension = file.name.split('.').pop().toLowerCase();
+            let sections;
+            if (extension === 'pdf') sections = await extractPdfSections(file);
+            else if (['txt', 'md', 'markdown', 'json'].includes(extension)) {
+                const text = await file.text();
+                const content = extension === 'json' ? JSON.stringify(JSON.parse(text), null, 2) : text;
+                sections = content.split(/\f|\n\s*\n/).map((part, index) => ({ label: `段落 ${index + 1}`, text: part.trim() })).filter(section => section.text);
+            } else throw new Error(`不支援的檔案格式：${extension}`);
+            const book = { id: makeId(), name: file.name, type: extension === 'markdown' ? 'md' : extension, importedAt: Date.now(), sections };
+            const database = await openBookDatabase();
+            await new Promise((resolve, reject) => {
+                const transaction = database.transaction(BOOK_STORE, 'readwrite');
+                transaction.objectStore(BOOK_STORE).put(book);
+                transaction.oncomplete = resolve;
+                transaction.onerror = () => reject(transaction.error);
+            });
+            database.close();
+        }
+
+        function escapeRegExp(value) { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+        function searchBooks(query) {
+            const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+            const results = [];
+            for (const book of bookCache) {
+                for (const section of book.sections) {
+                    const lower = section.text.toLowerCase();
+                    if (!terms.every(term => lower.includes(term))) continue;
+                    const firstMatch = Math.min(...terms.map(term => lower.indexOf(term)).filter(index => index >= 0));
+                    const start = Math.max(0, firstMatch - 100);
+                    const end = Math.min(section.text.length, firstMatch + 240);
+                    results.push({ book, section, snippet: `${start ? '…' : ''}${section.text.slice(start, end)}${end < section.text.length ? '…' : ''}` });
+                    if (results.length >= 60) return results;
+                }
+            }
+            return results;
+        }
+
+        function renderSearchResults(query) {
+            const container = document.getElementById('bookSearchResults');
+            if (!query.trim()) {
+                container.innerHTML = '<div class="empty-state">輸入關鍵字搜尋已匯入書籍。</div>';
+                return;
+            }
+            const results = searchBooks(query.trim());
+            if (!results.length) {
+                container.innerHTML = '<div class="empty-state">沒有找到符合的段落。試試單一關鍵字，或確認書籍已完成匯入。</div>';
+                return;
+            }
+            const matcher = new RegExp(`(${query.trim().split(/\s+/).map(escapeRegExp).join('|')})`, 'gi');
+            container.innerHTML = `<p style="color:var(--muted);font-size:9px">找到 ${results.length} 個段落</p>` + results.map(result => `<article class="search-result"><div class="result-book">${escapeHtml(result.book.name)} · ${escapeHtml(result.section.label)}</div><div class="result-snippet">${escapeHtml(result.snippet).replace(matcher, '<mark>$1</mark>')}</div></article>`).join('');
+        }
+
+        document.querySelectorAll('.nav-button').forEach(button => button.addEventListener('click', () => switchView(button.dataset.view)));
+        document.querySelectorAll('[data-open-view]').forEach(button => button.addEventListener('click', () => switchView(button.dataset.openView)));
+        document.getElementById('campaignSelect').addEventListener('change', event => {
+            current = campaigns.find(campaign => campaign.id === event.target.value) || campaigns[0];
+            renderAll();
+        });
+        document.getElementById('newCampaignButton').addEventListener('click', () => {
+            const name = prompt('新戰役名稱');
+            if (!name?.trim()) return;
+            current = makeCampaign(name.trim());
+            campaigns.push(current);
+            save();
+            switchView('overview');
+            showToast('新戰役已建立');
+        });
+        document.getElementById('addCharacterButton').addEventListener('click', () => openCharacterDialog());
+        document.getElementById('characterForm').addEventListener('submit', event => {
+            event.preventDefault();
+            const form = event.currentTarget;
+            const character = { id: editingCharacterId || makeId(), name: form.elements.name.value.trim(), className: form.elements.className.value.trim(), level: Number(form.elements.level.value), hp: Math.min(Number(form.elements.hp.value), Number(form.elements.maxHp.value)), maxHp: Number(form.elements.maxHp.value), ac: Number(form.elements.ac.value), initiativeBonus: Number(form.elements.initiativeBonus.value) };
+            if (editingCharacterId) current.party = current.party.map(item => item.id === editingCharacterId ? character : item);
+            else current.party.push(character);
+            save();
+            document.getElementById('characterDialog').close();
+            showToast(editingCharacterId ? '角色資料已更新' : '角色已加入隊伍');
+        });
+        document.getElementById('rosterGrid').addEventListener('click', event => {
+            const button = event.target.closest('[data-character-action]');
+            if (!button) return;
+            const character = current.party.find(item => item.id === button.dataset.id);
+            if (!character) return;
+            if (button.dataset.characterAction === 'edit') openCharacterDialog(character);
+            if (button.dataset.characterAction === 'remove' && confirm(`將 ${character.name} 移出隊伍？`)) current.party = current.party.filter(item => item.id !== character.id);
+            if (button.dataset.characterAction === 'hp-down') character.hp = Math.max(0, character.hp - 1);
+            if (button.dataset.characterAction === 'hp-up') character.hp = Math.min(character.maxHp, character.hp + 1);
+            save();
+        });
+        document.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click', () => document.getElementById(button.dataset.closeDialog).close()));
+
+        document.getElementById('addCombatantButton').addEventListener('click', () => document.getElementById('combatantDialog').showModal());
+        document.getElementById('combatantForm').addEventListener('submit', event => {
+            event.preventDefault();
+            const form = event.currentTarget;
+            const maxHp = Number(form.elements.maxHp.value);
+            current.combatants.push({ id: makeId(), name: form.elements.name.value.trim(), kind: form.elements.kind.value, hp: Math.min(Number(form.elements.hp.value), maxHp), maxHp, initiativeBonus: Number(form.elements.initiativeBonus.value), initiative: null });
+            current.started = false;
+            current.activeIndex = -1;
+            save();
+            event.currentTarget.reset();
+            document.getElementById('combatantDialog').close();
+        });
+        document.getElementById('combatList').addEventListener('click', event => {
+            const button = event.target.closest('[data-combat-action]');
+            if (!button) return;
+            const combatant = current.combatants.find(item => item.id === button.dataset.id);
+            if (!combatant) return;
+            if (button.dataset.combatAction === 'down') combatant.hp = Math.max(0, combatant.hp - 1);
+            if (button.dataset.combatAction === 'up') combatant.hp = Math.min(combatant.maxHp, combatant.hp + 1);
+            if (button.dataset.combatAction === 'remove') current.combatants = current.combatants.filter(item => item.id !== combatant.id);
+            if (!current.combatants.length) { current.started = false; current.activeIndex = -1; }
+            save();
+        });
+        document.getElementById('rollInitiativeButton').addEventListener('click', () => {
+            if (!current.combatants.length) current.combatants = current.party.map(character => ({ id: makeId(), name: character.name, kind: '玩家角色', hp: character.hp, maxHp: character.maxHp, initiativeBonus: character.initiativeBonus, initiative: null }));
+            if (!current.combatants.length) { showToast('先加入角色或參戰者'); return; }
+            current.combatants = current.combatants.map(combatant => ({ ...combatant, initiative: Math.floor(Math.random() * 20) + 1 + Number(combatant.initiativeBonus || 0) })).sort((first, second) => second.initiative - first.initiative);
+            current.started = true;
+            current.round = 1;
+            current.activeIndex = 0;
+            save();
+            showToast('先攻已擲出');
+        });
+        document.getElementById('nextTurnButton').addEventListener('click', () => {
+            if (!current.started || !current.combatants.length) return;
+            current.activeIndex++;
+            if (current.activeIndex >= current.combatants.length) { current.activeIndex = 0; current.round++; }
+            save();
+        });
+        document.getElementById('resetEncounterButton').addEventListener('click', () => {
+            current.started = false;
+            current.round = 0;
+            current.activeIndex = -1;
+            current.combatants = [];
+            save();
+        });
+        document.getElementById('diceButtons').addEventListener('click', event => {
+            const button = event.target.closest('[data-sides]');
+            if (button) rollDie(Number(button.dataset.sides), button.dataset.mode || 'normal');
+        });
+        document.getElementById('journalEditor').addEventListener('input', event => {
+            current.journal = event.target.value;
+            try { localStorage.setItem(SAVE_KEY, JSON.stringify(campaigns)); document.getElementById('saveStatus').textContent = '日誌已儲存'; } catch { document.getElementById('saveStatus').textContent = '儲存失敗'; }
+        });
+        document.getElementById('bookInput').addEventListener('change', async event => {
+            const files = [...event.target.files];
+            const status = document.getElementById('uploadStatus');
+            for (const file of files) {
+                status.textContent = `正在匯入 ${file.name}…`;
+                try { await importBook(file); }
+                catch (error) { showToast(error.message || '無法匯入檔案'); }
+            }
+            await getBooks();
+            status.textContent = files.length ? `完成，已處理 ${files.length} 個檔案。` : '';
+            event.target.value = '';
+        });
+        document.getElementById('bookSearchForm').addEventListener('submit', event => { event.preventDefault(); renderSearchResults(document.getElementById('bookSearchInput').value); });
+        document.getElementById('bookSearchInput').addEventListener('input', event => renderSearchResults(event.target.value));
+        document.getElementById('bookList').addEventListener('click', async event => {
+            const button = event.target.closest('[data-book-remove]');
+            if (!button || !confirm('從本機書庫移除此書？')) return;
+            const database = await openBookDatabase();
+            await new Promise((resolve, reject) => {
+                const transaction = database.transaction(BOOK_STORE, 'readwrite');
+                transaction.objectStore(BOOK_STORE).delete(button.dataset.bookRemove);
+                transaction.oncomplete = resolve;
+                transaction.onerror = () => reject(transaction.error);
+            });
+            database.close();
+            await getBooks();
+            renderSearchResults(document.getElementById('bookSearchInput').value);
+        });
+
+        renderAll();
+        getBooks().catch(error => showToast(`無法開啟本機書庫：${error.message}`));
+    </script>
+</body>
+</html>
